@@ -25,8 +25,16 @@ export default function Login() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
 
-  // Handle OAuth redirect: Supabase puts #access_token in URL after Google sign-in
+  // If already have a valid local session, go straight to dashboard
   useEffect(() => {
+    const raw = localStorage.getItem('student_session')
+    if (raw) {
+      try {
+        const s = JSON.parse(raw)
+        if (s.id && s.id !== 'admin-preview') { navigate('/dashboard'); return }
+      } catch {}
+    }
+
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return
       await handleAuthSession(data.session.user.id)

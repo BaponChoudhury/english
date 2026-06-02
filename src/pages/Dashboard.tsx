@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getProgressForStudent } from '../lib/supabase'
+import { getProgressForStudent, supabase } from '../lib/supabase'
 import { StudentSession, Progress } from '../types'
 import { CHAPTERS } from '../data/chapters'
 import AnimatedCharacter from '../components/AnimatedCharacter'
@@ -83,6 +83,7 @@ export default function Dashboard() {
 
   function handleLogout() {
     localStorage.removeItem('student_session')
+    supabase.auth.signOut()
     navigate('/')
   }
 
