@@ -46,7 +46,14 @@ export function speakText(text: string, lang = 'en-US'): void {
   window.speechSynthesis.cancel()
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = lang
-  utterance.rate = 0.85
+  utterance.rate = 0.82
   utterance.pitch = 1.1
-  window.speechSynthesis.speak(utterance)
+
+  const doSpeak = () => window.speechSynthesis.speak(utterance)
+  // On Android Chrome, voices load asynchronously — wait for them if needed
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.addEventListener('voiceschanged', doSpeak, { once: true })
+  } else {
+    doSpeak()
+  }
 }
