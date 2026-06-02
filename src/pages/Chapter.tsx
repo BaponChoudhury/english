@@ -293,6 +293,7 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
   const isLast = index === chapter.sentences.length - 1
   const [state, setState] = useState<RepeatState>('playing')
   const [heardText, setHeardText] = useState('')
+  const [micBlocked, setMicBlocked] = useState(false)
 
   // Auto-play when sentence changes
   useEffect(() => {
@@ -304,14 +305,25 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
     return () => clearTimeout(timer)
   }, [index])
 
-  function listenForRepeat() {
+  async function listenForRepeat() {
     const w = window as any
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition
     if (!SR) { alert('Please use Chrome on Android for speech.'); return }
 
+    // Request mic permission explicitly — required on mobile before SpeechRecognition works
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop()) // release immediately, just needed for permission
+      setMicBlocked(false)
+    } catch {
+      setMicBlocked(true)
+      setState('waiting')
+      return
+    }
+
     setState('listening')
     const rec = new SR()
-    rec.lang = 'en-US'  // Student repeats IN ENGLISH
+    rec.lang = 'en-US'
     rec.interimResults = false
     rec.maxAlternatives = 3
 
@@ -327,7 +339,10 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
         setTimeout(onNext, 1400)
       }
     }
-    rec.onerror = () => setState('waiting')
+    rec.onerror = (event: any) => {
+      if (event.error === 'not-allowed') setMicBlocked(true)
+      setState('waiting')
+    }
     rec.onend = () => { if (state === 'listening') setState('waiting') }
     rec.start()
   }
@@ -358,6 +373,16 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
         {item.emoji && <div className="text-5xl mb-2">{item.emoji}</div>}
         <p className="text-2xl font-black text-gray-800 leading-relaxed">{item.text}</p>
       </div>
+
+      {/* Mic blocked warning */}
+      {micBlocked && (
+        <div className="bg-red-50 border-2 border-red-400 rounded-2xl px-4 py-3 w-full text-center">
+          <p className="text-red-700 font-black text-base">🎤 Microphone blocked!</p>
+          <p className="text-red-600 text-sm mt-1">
+            In Chrome: tap the 🔒 lock icon in the address bar → tap <strong>Microphone</strong> → allow → refresh the page.
+          </p>
+        </div>
+      )}
 
       {/* Status feedback */}
       {state === 'playing' && (
