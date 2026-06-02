@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getOrCreateProgress, incrementRevision } from '../lib/supabase'
 import { StudentSession, Progress, QuizQuestion } from '../types'
@@ -6,34 +6,74 @@ import { speakAs, getSpeakerRole } from '../lib/translation'
 import ProgressBar from '../components/ProgressBar'
 import { CHAPTERS, ChapterData } from '../data/chapters'
 
-// Quiz: show emoji → student picks the correct English word
-function buildQuiz(chapter: ChapterData): QuizQuestion[] {
-  const pool = chapter.vocabulary.filter(v => v.emoji)
-  if (pool.length < 4) {
-    // Fallback: use all vocab without emoji requirement
-    const fb = chapter.vocabulary
-    const questions: QuizQuestion[] = []
-    for (const item of fb.slice(0, 5)) {
-      const others = fb.filter(v => v.word !== item.word).sort(() => 0.5 - Math.random()).slice(0, 3)
-      if (others.length < 3) continue
-      const options = [...others.map(o => o.word), item.word].sort(() => 0.5 - Math.random())
-      questions.push({ sentence: item.word, blankedSentence: `Which word means: "${item.word}"?`, answer: item.word, options })
-    }
-    return questions
-  }
-  const shuffled = [...pool].sort(() => 0.5 - Math.random())
-  return shuffled.slice(0, 5).flatMap(item => {
-    const others = pool.filter(v => v.word !== item.word).sort(() => 0.5 - Math.random()).slice(0, 3)
-    if (others.length < 3) return []
-    const options = [...others.map(o => o.word), item.word].sort(() => 0.5 - Math.random())
-    return [{ sentence: item.word, blankedSentence: item.emoji ?? item.word, answer: item.word, options }]
-  })
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isTeacher(speaker: string) {
   return /teacher|sir|miss|madam|instructor/i.test(speaker)
 }
 
+function normalise(text: string) {
+  return text.toLowerCase().replace(/[^a-z\s]/g, '').trim()
+}
+
+function isGoodMatch(heard: string, target: string): boolean {
+  const h = normalise(heard)
+  const t = normalise(target)
+  if (h === t) return true
+  const words = t.split(' ').filter(w => w.length > 2)
+  if (words.length === 0) return h.includes(t)
+  return words.filter(w => h.includes(w)).length >= Math.ceil(words.length * 0.55)
+}
+
+function buildQuiz(chapter: ChapterData): QuizQuestion[] {
+  const pool = chapter.vocabulary.filter(v => v.emoji)
+  const base = pool.length >= 4 ? pool : chapter.vocabulary
+  return base.sort(() => 0.5 - Math.random()).slice(0, 5).flatMap(item => {
+    const others = base.filter(v => v.word !== item.word).sort(() => 0.5 - Math.random()).slice(0, 3)
+    if (others.length < 3) return []
+    const options = [...others.map(o => o.word), item.word].sort(() => 0.5 - Math.random())
+    const prompt = item.emoji ?? `"${item.word}"`
+    return [{ sentence: item.word, blankedSentence: prompt, answer: item.word, options }]
+  })
+}
+
+// ── Avatars ───────────────────────────────────────────────────────────────────
+
+function TeacherAvatar({ active, size = 56 }: { active?: boolean; size?: number }) {
+  return (
+    <div className={`flex flex-col items-center gap-1 transition-all ${active ? 'scale-115' : ''}`}>
+      <div style={{ width: size, height: size }}
+        className={`rounded-full flex items-center justify-center text-3xl shadow-lg border-4 ${
+          active ? 'border-purple-500 bg-purple-100 animate-bounce' : 'border-purple-200 bg-purple-50'
+        }`}>
+        👩‍🏫
+      </div>
+      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${active ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-400'}`}>
+        Teacher
+      </span>
+    </div>
+  )
+}
+
+function StudentAvatar({ label = 'Student', active, size = 56, emoji = '👦' }: { label?: string; active?: boolean; size?: number; emoji?: string }) {
+  return (
+    <div className={`flex flex-col items-center gap-1 transition-all ${active ? 'scale-115' : ''}`}>
+      <div style={{ width: size, height: size }}
+        className={`rounded-full flex items-center justify-center text-3xl shadow-lg border-4 ${
+          active ? 'border-blue-500 bg-blue-100 animate-bounce' : 'border-blue-200 bg-blue-50'
+        }`}>
+        {emoji}
+      </div>
+      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${active ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-400'}`}>
+        {label}
+      </span>
+    </div>
+  )
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
+// Flow: vocab → lesson (speak & repeat) → dialogue → quiz (day 2+) → complete (counts revision)
 type Phase = 'vocab' | 'lesson' | 'dialogue' | 'quiz' | 'complete'
 
 export default function Chapter() {
@@ -71,17 +111,18 @@ export default function Chapter() {
   function speak(text: string, role: 'teacher' | 'student' = 'teacher') {
     setSpeaking(true)
     speakAs(text, role)
-    const dur = Math.max(1500, text.length * 70 + 800)
+    const dur = Math.max(1500, text.length * 75 + 800)
     setTimeout(() => setSpeaking(false), dur)
   }
 
   function startDialoguePlayback(lines: { speaker: string; text: string }[]) {
+    window.speechSynthesis?.cancel()
     let delay = 0
     lines.forEach((line, i) => {
       const role = isTeacher(line.speaker) ? 'teacher' : 'student'
       setTimeout(() => setActiveLine(i), delay)
-      setTimeout(() => speakAs(line.text, role), delay + 100)
-      delay += Math.max(1800, line.text.length * 75 + 1000)
+      setTimeout(() => speakAs(line.text, role), delay + 150)
+      delay += Math.max(1800, line.text.length * 78 + 1000)
     })
     setTimeout(() => setActiveLine(-1), delay)
   }
@@ -92,6 +133,12 @@ export default function Chapter() {
         <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  const tabs = (['vocab', 'lesson', 'dialogue', 'quiz'] as Phase[])
+    .filter(p => !(p === 'quiz' && chapter.day === 1))
+  const tabLabels: Record<string, string> = {
+    vocab: '📚 Words', lesson: '🗣️ Speak', dialogue: '💬 Talk', quiz: '📝 Quiz'
   }
 
   return (
@@ -111,28 +158,37 @@ export default function Chapter() {
 
       {/* Phase tabs */}
       <div className="flex bg-white border-b border-gray-100 px-2 pt-2 gap-1">
-        {(['vocab', 'lesson', 'dialogue', 'quiz'] as Phase[]).filter(p => !(p === 'quiz' && chapter.day === 1)).map((p, i) => (
+        {tabs.map(p => (
           <button key={p} onClick={() => setPhase(p)}
             className={`flex-1 py-2 text-xs font-bold rounded-t-lg transition ${
               phase === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'
             }`}>
-            {(['📚 Words', '🗣️ Speak', '💬 Talk', '📝 Quiz'] as const).filter((_, j) => !(j === 3 && chapter.day === 1))[i]}
+            {tabLabels[p]}
           </button>
         ))}
       </div>
 
       <div className="flex-1 flex flex-col p-4 overflow-auto">
+
         {phase === 'vocab' && (
           <VocabPhase chapter={chapter} index={vocabIndex} speaking={speaking} onSpeak={speak}
             onNext={() => { if (vocabIndex < chapter.vocabulary.length - 1) setVocabIndex(i => i + 1); else setPhase('lesson') }}
             onPrev={() => setVocabIndex(i => Math.max(0, i - 1))} />
         )}
+
         {phase === 'lesson' && (
-          <LessonPhase chapter={chapter} index={sentenceIndex} speaking={speaking}
-            onSpeak={(text, role) => speak(text, role)}
-            onNext={() => { if (sentenceIndex < chapter.sentences.length - 1) setSentenceIndex(i => i + 1); else setPhase('dialogue') }}
-            onPrev={() => setSentenceIndex(i => Math.max(0, i - 1))} />
+          <RepeatPhase
+            chapter={chapter}
+            index={sentenceIndex}
+            onSpeak={speak}
+            onNext={() => {
+              if (sentenceIndex < chapter.sentences.length - 1) setSentenceIndex(i => i + 1)
+              else setPhase('dialogue')
+            }}
+            onPrev={() => setSentenceIndex(i => Math.max(0, i - 1))}
+          />
         )}
+
         {phase === 'dialogue' && (
           <DialoguePhase chapter={chapter} index={dialogueIndex} activeLine={activeLine}
             onPlay={() => { setActiveLine(0); startDialoguePlayback(chapter.dialogues[dialogueIndex].lines) }}
@@ -144,11 +200,10 @@ export default function Chapter() {
             }}
             onPrev={() => { setActiveLine(-1); setDialogueIndex(i => Math.max(0, i - 1)) }} />
         )}
+
         {phase === 'quiz' && (
           quiz.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-5xl mb-4">📝</p>
-              <p className="text-gray-500 font-bold">No quiz for this chapter yet.</p>
               <button onClick={() => setPhase('complete')} className="mt-4 bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl">Finish →</button>
             </div>
           ) : quizIndex < quiz.length ? (
@@ -158,48 +213,13 @@ export default function Chapter() {
               onNext={() => { setSelectedAnswer(null); if (quizIndex < quiz.length - 1) setQuizIndex(i => i + 1); else setPhase('complete') }} />
           ) : null
         )}
+
         {phase === 'complete' && (
           <CompletePhase score={quizScore} total={quiz.length} currentRevisions={progress?.revision_count ?? 0}
             studentId={session?.id ?? ''} dayKey={`day-${chapter.day}`}
-            onGoBack={() => navigate('/dashboard')} onPractice={() => navigate(`/practice/${chapter.day}`)} />
+            onGoBack={() => navigate('/dashboard')} />
         )}
       </div>
-    </div>
-  )
-}
-
-// ── Characters ────────────────────────────────────────────────────────────────
-
-function TeacherAvatar({ active, size = 56 }: { active?: boolean; size?: number }) {
-  return (
-    <div className={`flex flex-col items-center gap-1 transition-transform ${active ? 'scale-110' : ''}`}>
-      <div style={{ width: size, height: size }}
-        className={`rounded-full flex items-center justify-center text-3xl shadow-lg border-4 ${
-          active ? 'border-purple-500 bg-purple-100 animate-bounce' : 'border-purple-300 bg-purple-50'
-        }`}>
-        👩‍🏫
-      </div>
-      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${active ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700'}`}>
-        Teacher
-      </span>
-    </div>
-  )
-}
-
-function StudentAvatar({ name, active, size = 56 }: { name: string; active?: boolean; size?: number }) {
-  const emoji = name.toLowerCase().includes('child b') || name.toLowerCase().includes('2') ? '👧' : '👦'
-  const label = name.replace('Child ', 'Child ').replace('Students', 'Students')
-  return (
-    <div className={`flex flex-col items-center gap-1 transition-transform ${active ? 'scale-110' : ''}`}>
-      <div style={{ width: size, height: size }}
-        className={`rounded-full flex items-center justify-center text-3xl shadow-lg border-4 ${
-          active ? 'border-blue-500 bg-blue-100 animate-bounce' : 'border-blue-300 bg-blue-50'
-        }`}>
-        {emoji}
-      </div>
-      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${active ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'}`}>
-        {label}
-      </span>
     </div>
   )
 }
@@ -208,21 +228,18 @@ function StudentAvatar({ name, active, size = 56 }: { name: string; active?: boo
 
 function VocabPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
   chapter: ChapterData; index: number; speaking: boolean
-  onSpeak: (t: string) => void; onNext: () => void; onPrev: () => void
+  onSpeak: (t: string, r: 'teacher' | 'student') => void; onNext: () => void; onPrev: () => void
 }) {
   const item = chapter.vocabulary[index]
   const isLast = index === chapter.vocabulary.length - 1
-
-  // Auto-play each word when index changes (user already tapped to get here)
-  useEffect(() => { onSpeak(item.word) }, [index])
+  useEffect(() => { onSpeak(item.word, 'teacher') }, [index])
 
   return (
     <div className="flex flex-col items-center gap-4 max-w-lg mx-auto w-full">
       <TeacherAvatar active={speaking} size={64} />
       <ProgressBar current={index + 1} total={chapter.vocabulary.length} label="Vocabulary" />
-      <button
-        className="bg-white rounded-3xl shadow-lg p-8 w-full border-2 border-indigo-100 text-center active:scale-95 transition-transform"
-        onClick={() => onSpeak(item.word)}>
+      <button className="bg-white rounded-3xl shadow-lg p-8 w-full border-2 border-indigo-100 text-center active:scale-95 transition-transform"
+        onClick={() => onSpeak(item.word, 'teacher')}>
         {item.emoji && <div className="text-6xl mb-3">{item.emoji}</div>}
         <p className="text-3xl font-black text-indigo-700">{item.word}</p>
         <p className="text-sm text-gray-400 mt-2">🔊 Tap to hear again</p>
@@ -232,56 +249,151 @@ function VocabPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
           className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl py-4 disabled:opacity-30 touch-target">← Back</button>
         <button onClick={onNext}
           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 touch-target">
-          {isLast ? 'Start Lesson →' : 'Next →'}
+          {isLast ? 'Start Speaking →' : 'Next →'}
         </button>
       </div>
     </div>
   )
 }
 
-// ── LessonPhase ───────────────────────────────────────────────────────────────
+// ── RepeatPhase (speak-and-repeat) ────────────────────────────────────────────
 
-function LessonPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
-  chapter: ChapterData; index: number; speaking: boolean
-  onSpeak: (t: string, role: 'teacher' | 'student') => void; onNext: () => void; onPrev: () => void
+type RepeatState = 'playing' | 'waiting' | 'listening' | 'correct' | 'wrong'
+
+function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
+  chapter: ChapterData; index: number
+  onSpeak: (t: string, r: 'teacher' | 'student') => void; onNext: () => void; onPrev: () => void
 }) {
   const item = chapter.sentences[index]
-  const isLast = index === chapter.sentences.length - 1
   const role = getSpeakerRole(item.text)
   const isStudent = role === 'student'
+  const isLast = index === chapter.sentences.length - 1
+  const [state, setState] = useState<RepeatState>('playing')
+  const [heardText, setHeardText] = useState('')
 
-  // Auto-play with correct role voice when sentence changes
-  useEffect(() => { onSpeak(item.text, role) }, [index])
+  // Auto-play when sentence changes
+  useEffect(() => {
+    setState('playing')
+    setHeardText('')
+    const dur = Math.max(1500, item.text.length * 78 + 800)
+    onSpeak(item.text, role)
+    const timer = setTimeout(() => setState('waiting'), dur)
+    return () => clearTimeout(timer)
+  }, [index])
+
+  function listenForRepeat() {
+    const w = window as any
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition
+    if (!SR) { alert('Please use Chrome on Android for speech.'); return }
+
+    setState('listening')
+    const rec = new SR()
+    rec.lang = 'en-US'  // Student repeats IN ENGLISH
+    rec.interimResults = false
+    rec.maxAlternatives = 3
+
+    rec.onresult = (event: any) => {
+      const alts: string[] = []
+      for (let i = 0; i < event.results[0].length; i++) alts.push(event.results[0][i].transcript)
+      const heard = alts[0] ?? ''
+      setHeardText(heard)
+      const matched = alts.some(a => isGoodMatch(a, item.text))
+      setState(matched ? 'correct' : 'wrong')
+      if (matched) {
+        speakAs('Very good!', 'teacher')
+        setTimeout(onNext, 1400)
+      }
+    }
+    rec.onerror = () => setState('waiting')
+    rec.onend = () => { if (state === 'listening') setState('waiting') }
+    rec.start()
+  }
+
+  function replay() {
+    setState('playing')
+    setHeardText('')
+    onSpeak(item.text, role)
+    const dur = Math.max(1500, item.text.length * 78 + 800)
+    setTimeout(() => setState('waiting'), dur)
+  }
 
   return (
     <div className="flex flex-col items-center gap-4 max-w-lg mx-auto w-full">
-      {/* Show correct character */}
-      <div className="flex gap-6 items-end justify-center">
-        <TeacherAvatar active={speaking && !isStudent} size={64} />
-        <StudentAvatar name="Student" active={speaking && isStudent} size={64} />
+      {/* Both avatars — active one bounces */}
+      <div className="flex gap-8 items-end justify-center py-2">
+        <TeacherAvatar active={!isStudent && state === 'playing'} size={64} />
+        <StudentAvatar active={isStudent && state === 'playing' || state === 'listening' || state === 'correct' || state === 'wrong'} size={64} />
       </div>
-      {/* Role label */}
-      <div className={`px-4 py-1 rounded-full text-xs font-black ${isStudent ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-        {isStudent ? '👦 Student says:' : '👩‍🏫 Teacher says:'}
-      </div>
-      <ProgressBar current={index + 1} total={chapter.sentences.length} label="Sentences" />
-      <div className={`bg-white rounded-3xl shadow-lg p-6 w-full border-2 text-center ${isStudent ? 'border-blue-100' : 'border-purple-100'}`}>
-        {item.emoji && <div className="text-5xl mb-3">{item.emoji}</div>}
+
+      <ProgressBar current={index + 1} total={chapter.sentences.length} label="Speak & Repeat" />
+
+      {/* Sentence card */}
+      <div className={`bg-white rounded-3xl shadow-lg p-6 w-full border-2 text-center ${isStudent ? 'border-blue-200' : 'border-purple-200'}`}>
+        <div className={`text-xs font-black mb-2 px-3 py-1 rounded-full inline-block ${isStudent ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+          {isStudent ? '👦 Student says' : '👩‍🏫 Teacher says'}
+        </div>
+        {item.emoji && <div className="text-5xl mb-2">{item.emoji}</div>}
         <p className="text-2xl font-black text-gray-800 leading-relaxed">{item.text}</p>
       </div>
-      <p className="text-sm text-indigo-500 font-semibold">Say it out loud! 🗣️</p>
+
+      {/* Status feedback */}
+      {state === 'playing' && (
+        <div className="flex items-center gap-2 text-purple-600 font-bold text-sm animate-pulse">
+          🔊 Listen carefully…
+        </div>
+      )}
+      {state === 'waiting' && (
+        <div className="text-indigo-600 font-black text-base text-center">
+          Now YOU say it! 👆<br/>
+          <span className="text-sm font-semibold text-gray-500">Say it out loud in English</span>
+        </div>
+      )}
+      {state === 'listening' && (
+        <div className="text-red-500 font-black text-base animate-pulse text-center">
+          🎤 Listening… say it now!
+        </div>
+      )}
+      {state === 'correct' && (
+        <div className="bg-green-50 border-2 border-green-400 rounded-2xl px-4 py-3 w-full text-center">
+          <p className="text-green-700 font-black text-xl">🌟 Excellent!</p>
+          <p className="text-green-600 text-sm">I heard: "{heardText}"</p>
+        </div>
+      )}
+      {state === 'wrong' && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl px-4 py-3 w-full text-center">
+          <p className="text-red-700 font-black text-base">Try again! I heard: "{heardText}"</p>
+          <p className="text-red-500 text-sm">Listen again and repeat the exact sentence</p>
+        </div>
+      )}
+
+      {/* Action buttons */}
       <div className="flex gap-3 w-full">
-        <button onClick={() => onSpeak(item.text, role)}
-          className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-white font-black rounded-xl py-4 touch-target text-lg">
-          🔊 Again
+        <button onClick={replay}
+          className="flex-1 bg-amber-400 hover:bg-amber-500 text-white font-black rounded-xl py-4 touch-target">
+          🔊 Replay
         </button>
+        {(state === 'waiting' || state === 'wrong') && (
+          <button onClick={listenForRepeat}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl py-4 touch-target text-lg">
+            🎤 I'll Say It!
+          </button>
+        )}
+        {state === 'listening' && (
+          <div className="flex-1 bg-red-500 text-white font-black rounded-xl py-4 text-center animate-pulse">
+            🎤 Listening…
+          </div>
+        )}
+      </div>
+
+      {/* Skip button */}
+      <div className="flex gap-3 w-full">
+        <button onClick={onPrev} disabled={index === 0}
+          className="flex-1 text-gray-400 text-sm font-semibold disabled:opacity-20 py-2">← Prev</button>
         <button onClick={onNext}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 touch-target">
-          {isLast ? 'Dialogues →' : 'Next →'}
+          className="flex-1 text-gray-400 text-sm font-semibold py-2">
+          {isLast ? 'Done →' : 'Skip →'}
         </button>
       </div>
-      <button onClick={onPrev} disabled={index === 0}
-        className="w-full text-gray-400 text-sm font-semibold disabled:opacity-30 py-2">← Previous</button>
     </div>
   )
 }
@@ -303,36 +415,40 @@ function DialoguePhase({ chapter, index, activeLine, onPlay, onNext, onPrev }: {
         </span>
       </div>
 
-      {/* Character row */}
+      {/* Character scene */}
       <div className="flex justify-around items-end bg-gradient-to-b from-sky-100 to-green-50 rounded-2xl p-4 border-2 border-sky-200">
         {dialogue.lines.some(l => isTeacher(l.speaker)) && (
           <TeacherAvatar active={activeLine >= 0 && isTeacher(dialogue.lines[activeLine]?.speaker)} size={64} />
         )}
-        {dialogue.lines.filter(l => !isTeacher(l.speaker)).filter((l, i, arr) => arr.findIndex(x => x.speaker === l.speaker) === i).map(l => (
-          <StudentAvatar key={l.speaker} name={l.speaker} size={64}
-            active={activeLine >= 0 && dialogue.lines[activeLine]?.speaker === l.speaker} />
-        ))}
+        {dialogue.lines
+          .filter(l => !isTeacher(l.speaker))
+          .filter((l, i, arr) => arr.findIndex(x => x.speaker === l.speaker) === i)
+          .map(l => {
+            const emoji = l.speaker.toLowerCase().includes('b') || l.speaker.includes('2') ? '👧' : '👦'
+            return (
+              <StudentAvatar key={l.speaker} label={l.speaker} emoji={emoji} size={64}
+                active={activeLine >= 0 && dialogue.lines[activeLine]?.speaker === l.speaker} />
+            )
+          })}
       </div>
 
       {/* Chat bubbles */}
       <div className="bg-white rounded-2xl shadow-md p-4 border-2 border-purple-100 space-y-3">
         {dialogue.lines.map((line, i) => {
           const teacher = isTeacher(line.speaker)
-          const isActive = activeLine === i
+          const active = activeLine === i
           return (
-            <div key={i} className={`flex gap-3 items-start ${!teacher ? 'flex-row-reverse' : ''} transition-all`}>
-              <div className={`text-2xl shrink-0 transition-transform ${isActive ? 'scale-125' : ''}`}>
+            <div key={i} className={`flex gap-3 items-start ${!teacher ? 'flex-row-reverse' : ''}`}>
+              <span className={`text-2xl shrink-0 transition-transform ${active ? 'scale-125' : ''}`}>
                 {teacher ? '👩‍🏫' : (line.speaker.toLowerCase().includes('b') || line.speaker.includes('2') ? '👧' : '👦')}
-              </div>
-              <div className={`flex-1 rounded-2xl px-3 py-2 transition-all ${
+              </span>
+              <div className={`flex-1 rounded-2xl px-3 py-2 transition-all border ${
                 teacher
-                  ? isActive ? 'bg-purple-200 border-2 border-purple-500 shadow-md' : 'bg-purple-50 border border-purple-200'
-                  : isActive ? 'bg-blue-200 border-2 border-blue-500 shadow-md' : 'bg-blue-50 border border-blue-200'
+                  ? active ? 'bg-purple-100 border-purple-400 shadow' : 'bg-purple-50 border-purple-100'
+                  : active ? 'bg-blue-100 border-blue-400 shadow' : 'bg-blue-50 border-blue-100'
               } ${!teacher ? 'rounded-tr-none' : 'rounded-tl-none'}`}>
-                <p className={`text-xs font-black mb-0.5 ${teacher ? 'text-purple-600' : 'text-blue-600'}`}>
-                  {teacher ? '👩‍🏫 ' : ''}{line.speaker}
-                </p>
-                <p className={`font-bold text-gray-800 ${isActive ? 'text-base' : 'text-sm'}`}>{line.text}</p>
+                <p className={`text-xs font-black mb-0.5 ${teacher ? 'text-purple-600' : 'text-blue-600'}`}>{line.speaker}</p>
+                <p className={`font-bold text-gray-800 ${active ? 'text-base' : 'text-sm'}`}>{line.text}</p>
               </div>
             </div>
           )
@@ -340,7 +456,7 @@ function DialoguePhase({ chapter, index, activeLine, onPlay, onNext, onPrev }: {
       </div>
 
       <button onClick={onPlay}
-        className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-white font-black rounded-xl py-3 touch-target text-lg shadow">
+        className="w-full bg-amber-400 hover:bg-amber-500 text-white font-black rounded-xl py-3 touch-target text-lg shadow">
         ▶️ Play Dialogue
       </button>
       <div className="flex gap-3">
@@ -348,7 +464,7 @@ function DialoguePhase({ chapter, index, activeLine, onPlay, onNext, onPrev }: {
           className="flex-1 bg-gray-100 text-gray-600 font-bold rounded-xl py-4 disabled:opacity-30 touch-target">← Back</button>
         <button onClick={onNext}
           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 touch-target">
-          {isLast ? 'Take Quiz →' : 'Next →'}
+          {isLast ? (chapter.day === 1 ? 'Finish →' : 'Take Quiz →') : 'Next →'}
         </button>
       </div>
     </div>
@@ -371,15 +487,11 @@ function QuizPhase({ question, questionNumber, total, selectedAnswer, onSelect, 
       </div>
       <div className="bg-white rounded-2xl shadow-md p-6 border-2 border-indigo-100 text-center">
         {isEmoji ? (
-          <>
-            <div className="text-7xl mb-3">{question.blankedSentence}</div>
-            <p className="text-base font-bold text-gray-600">What does this mean in English?</p>
-          </>
+          <><div className="text-7xl mb-3">{question.blankedSentence}</div>
+            <p className="font-bold text-gray-600">What does this mean in English?</p></>
         ) : (
-          <>
-            <p className="text-sm text-gray-500 font-semibold mb-2">Choose the correct word:</p>
-            <p className="text-xl font-black text-gray-800">{question.blankedSentence}</p>
-          </>
+          <><p className="text-sm text-gray-500 font-semibold mb-2">Choose the correct word:</p>
+            <p className="text-xl font-black text-gray-800">{question.blankedSentence}</p></>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -400,11 +512,9 @@ function QuizPhase({ question, questionNumber, total, selectedAnswer, onSelect, 
       {selectedAnswer && (
         <>
           <div className={`rounded-xl px-4 py-4 text-center font-black text-lg ${
-            selectedAnswer === question.answer
-              ? 'bg-green-50 text-green-700 border-2 border-green-400'
-              : 'bg-red-50 text-red-700 border-2 border-red-400'
+            selectedAnswer === question.answer ? 'bg-green-50 text-green-700 border-2 border-green-400' : 'bg-red-50 text-red-700 border-2 border-red-400'
           }`}>
-            {selectedAnswer === question.answer ? '🎉 Correct! Well done!' : `❌ The answer is: "${question.answer}"`}
+            {selectedAnswer === question.answer ? '🎉 Correct!' : `❌ Answer: "${question.answer}"`}
           </div>
           <button onClick={onNext}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 shadow touch-target text-lg">
@@ -416,11 +526,11 @@ function QuizPhase({ question, questionNumber, total, selectedAnswer, onSelect, 
   )
 }
 
-// ── CompletePhase ─────────────────────────────────────────────────────────────
+// ── CompletePhase — counts revision here (student has spoken all sentences) ───
 
-function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGoBack, onPractice }: {
+function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGoBack }: {
   score: number; total: number; currentRevisions: number
-  studentId: string; dayKey: string; onGoBack: () => void; onPractice: () => void
+  studentId: string; dayKey: string; onGoBack: () => void
 }) {
   const [saving, setSaving] = useState(true)
   const [newRevisions, setNewRevisions] = useState(currentRevisions)
@@ -432,21 +542,20 @@ function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGo
       .finally(() => setSaving(false))
   }, [])
 
-  const pct = Math.round((score / Math.max(total, 1)) * 100)
+  const pct = total > 0 ? Math.round((score / total) * 100) : 100
 
   return (
     <div className="flex flex-col items-center gap-5 max-w-lg mx-auto w-full py-6">
       <div className="text-7xl">{pct >= 80 ? '🌟' : pct >= 50 ? '😊' : '💪'}</div>
       <h2 className="font-black text-2xl text-gray-800 text-center">
-        {pct >= 80 ? 'Excellent!' : pct >= 50 ? 'Good job!' : 'Keep practising!'}
+        {pct >= 80 ? 'Excellent work!' : pct >= 50 ? 'Good job!' : 'Keep practising!'}
       </h2>
-      <div className="bg-white rounded-2xl shadow-md p-6 w-full text-center border-2 border-green-200">
-        <p className="text-5xl font-black text-green-600">{score}<span className="text-2xl text-gray-400">/{total}</span></p>
-        <p className="text-gray-500 font-semibold mt-1">Quiz Score</p>
-        <div className="w-full bg-gray-100 rounded-full h-3 mt-3">
-          <div className="bg-green-500 h-3 rounded-full transition-all" style={{ width: `${pct}%` }} />
+      {total > 0 && (
+        <div className="bg-white rounded-2xl shadow-md p-5 w-full text-center border-2 border-green-200">
+          <p className="text-4xl font-black text-green-600">{score}<span className="text-xl text-gray-400">/{total}</span></p>
+          <p className="text-gray-500 font-semibold mt-1">Quiz Score</p>
         </div>
-      </div>
+      )}
       <div className="bg-indigo-50 rounded-2xl p-4 w-full text-center border border-indigo-200">
         {saving ? (
           <p className="text-indigo-400 text-sm">Saving progress…</p>
@@ -455,19 +564,15 @@ function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGo
             <p className="text-indigo-700 font-black text-xl">{newRevisions}/10 Revisions</p>
             <p className="text-indigo-500 text-sm mt-1">
               {newRevisions < 10
-                ? `${10 - newRevisions} more revision${10 - newRevisions !== 1 ? 's' : ''} to unlock the next day!`
+                ? `${10 - newRevisions} more to unlock next day!`
                 : '🎉 All done! Next day unlocks tomorrow.'}
             </p>
             <ProgressBar current={Math.min(newRevisions, 10)} total={10} label="" />
           </>
         )}
       </div>
-      <button onClick={onPractice}
-        className="w-full bg-green-500 hover:bg-green-600 text-white font-black rounded-xl py-4 text-lg shadow-lg touch-target">
-        🎤 Practice Speaking
-      </button>
       <button onClick={onGoBack}
-        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl py-3 touch-target">
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 text-lg shadow-lg touch-target">
         ← Back to Dashboard
       </button>
     </div>
