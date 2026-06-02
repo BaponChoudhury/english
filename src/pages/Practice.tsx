@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getChapterById } from '../lib/supabase'
-import { Chapter } from '../types'
+import { CHAPTERS } from '../data/chapters'
 import { translateToEnglish, speakText, SupportedLanguage, LANGUAGE_NAMES } from '../lib/translation'
 import { TranslationResult } from '../lib/translation'
 import AnimatedCharacter from '../components/AnimatedCharacter'
@@ -10,8 +9,8 @@ import SpeechInput from '../components/SpeechInput'
 export default function Practice() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [chapter, setChapter] = useState<Chapter | null>(null)
-  const [loading, setLoading] = useState(true)
+  const chapter = CHAPTERS.find(c => c.day === Number(id)) ?? null
+  const [loading] = useState(false)
   const [language, setLanguage] = useState<SupportedLanguage>('hi')
   const [translation, setTranslation] = useState<TranslationResult | null>(null)
   const [translating, setTranslating] = useState(false)
@@ -19,11 +18,7 @@ export default function Practice() {
   const [translationError, setTranslationError] = useState('')
 
   useEffect(() => {
-    if (!id) return
-    getChapterById(id)
-      .then(c => setChapter(c))
-      .catch(() => setSpeechError('Failed to load chapter.'))
-      .finally(() => setLoading(false))
+    if (!id) navigate('/dashboard')
   }, [id])
 
   async function handleTranscript(text: string) {
@@ -164,18 +159,18 @@ export default function Practice() {
         )}
 
         {/* Sentence reference */}
-        {chapter?.content && chapter.content.length > 0 && (
+        {chapter?.sentences && chapter.sentences.length > 0 && (
           <div className="bg-indigo-50 rounded-2xl p-4 shadow border border-indigo-100">
             <p className="text-xs font-black text-indigo-500 mb-2 uppercase tracking-wide">
               Today's sentences (for reference):
             </p>
             <ul className="space-y-2">
-              {chapter.content.map((sentence, i) => (
+              {chapter.sentences.map((s, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-indigo-400 font-black text-xs mt-0.5">{i + 1}.</span>
-                  <p className="text-sm text-indigo-800 font-semibold flex-1">{sentence}</p>
+                  <span className="text-indigo-400 font-black text-xs mt-0.5">{s.emoji ?? (i + 1) + '.'}</span>
+                  <p className="text-sm text-indigo-800 font-semibold flex-1">{s.text}</p>
                   <button
-                    onClick={() => speakText(sentence)}
+                    onClick={() => speakText(s.text)}
                     className="text-indigo-400 hover:text-indigo-600 text-base shrink-0 touch-target flex items-center justify-center"
                     aria-label="Play"
                   >

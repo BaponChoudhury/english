@@ -3,28 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    'Supabase environment variables are missing. ' +
-    'Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
-  )
-}
-
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key'
 )
 
-// Student operations
+// ── Student operations ────────────────────────────────────────────────────────
+
 export async function validateStudentJoiningCode(code: string) {
-  // Each student has their own unique joining code pre-issued by the teacher
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('students')
     .select('*')
     .eq('joining_code', code.toUpperCase())
-    .single()
-  if (error) return null
-  return data
+    .maybeSingle()
+  return data ?? null
 }
 
 export async function createStudent(name: string, studentClass: string, schoolCode: string) {
@@ -38,33 +30,21 @@ export async function createStudent(name: string, studentClass: string, schoolCo
   return data
 }
 
+export async function deleteStudent(studentId: string) {
+  // Delete progress first (FK constraint), then student
+  await supabase.from('progress').delete().eq('student_id', studentId)
+  const { error } = await supabase.from('students').delete().eq('id', studentId)
+  if (error) throw error
+}
+
 function generateStudentCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
-// Chapter operations
-export async function getChaptersForSchool(joiningCode: string) {
-  const { data, error } = await supabase
-    .from('chapters')
-    .select('*')
-    .eq('school_joining_code', joiningCode.toUpperCase())
-    .order('day_number', { ascending: true })
-  if (error) throw error
-  return data || []
-}
+// ── Progress operations ───────────────────────────────────────────────────────
+// Uses day_key (e.g. "day-1") instead of a UUID FK so no chapters table needed
 
-export async function getChapterById(id: string) {
-  const { data, error } = await supabase
-    .from('chapters')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (error) throw error
-  return data
-}
-
-// Progress operations
 export async function getProgressForStudent(studentId: string) {
   const { data, error } = await supabase
     .from('progress')
@@ -74,27 +54,27 @@ export async function getProgressForStudent(studentId: string) {
   return data || []
 }
 
-export async function getOrCreateProgress(studentId: string, chapterId: string) {
+export async function getOrCreateProgress(studentId: string, dayKey: string) {
   const { data: existing } = await supabase
     .from('progress')
     .select('*')
     .eq('student_id', studentId)
-    .eq('chapter_id', chapterId)
+    .eq('day_key', dayKey)
     .maybeSingle()
 
   if (existing) return existing
 
   const { data, error } = await supabase
     .from('progress')
-    .insert({ student_id: studentId, chapter_id: chapterId })
+    .insert({ student_id: studentId, day_key: dayKey, revision_count: 0 })
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function incrementRevision(studentId: string, chapterId: string) {
-  const prog = await getOrCreateProgress(studentId, chapterId)
+export async function incrementRevision(studentId: string, dayKey: string) {
+  const prog = await getOrCreateProgress(studentId, dayKey)
   const newCount = (prog.revision_count || 0) + 1
   const { data, error } = await supabase
     .from('progress')
@@ -106,23 +86,8 @@ export async function incrementRevision(studentId: string, chapterId: string) {
   return data
 }
 
-export async function unlockNextChapter(studentId: string, nextChapterId: string) {
-  const { data: existing } = await supabase
-    .from('progress')
-    .select('*')
-    .eq('student_id', studentId)
-    .eq('chapter_id', nextChapterId)
-    .maybeSingle()
+// ── Admin operations ──────────────────────────────────────────────────────────
 
-  if (!existing) {
-    const { error } = await supabase
-      .from('progress')
-      .insert({ student_id: studentId, chapter_id: nextChapterId, unlocked_at: new Date().toISOString() })
-    if (error) throw error
-  }
-}
-
-// Admin operations
 export async function getAllStudentsWithProgress(schoolCode: string) {
   const { data: students, error } = await supabase
     .from('students')
@@ -144,41 +109,6 @@ export async function createSchool(name: string, joiningCode: string) {
   const { data, error } = await supabase
     .from('schools')
     .insert({ name, joining_code: joiningCode.toUpperCase() })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function uploadChapterPDF(file: File, schoolCode: string) {
-  const fileName = `${schoolCode}/${Date.now()}_${file.name}`
-  const { data, error } = await supabase.storage
-    .from('chapters')
-    .upload(fileName, file)
-  if (error) throw error
-
-  const { data: urlData } = supabase.storage
-    .from('chapters')
-    .getPublicUrl(data.path)
-  return urlData.publicUrl
-}
-
-export async function createChapter(
-  dayNumber: number,
-  title: string,
-  content: string[],
-  pdfUrl: string,
-  schoolCode: string
-) {
-  const { data, error } = await supabase
-    .from('chapters')
-    .insert({
-      day_number: dayNumber,
-      title,
-      content,
-      pdf_url: pdfUrl,
-      school_joining_code: schoolCode.toUpperCase()
-    })
     .select()
     .single()
   if (error) throw error

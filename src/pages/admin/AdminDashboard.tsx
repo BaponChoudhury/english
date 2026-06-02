@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase, getSchoolsForAdmin, getAllStudentsWithProgress, getChaptersForSchool, createSchool, createStudent } from '../../lib/supabase'
-import { School, Chapter, Progress } from '../../types'
+import { supabase, getSchoolsForAdmin, getAllStudentsWithProgress, createSchool, createStudent, deleteStudent } from '../../lib/supabase'
+import { School, Progress } from '../../types'
+import { CHAPTERS } from '../../data/chapters'
 
 const CLASSES = ['Nursery', 'LKG', 'UKG', 'Class I', 'Class II', 'Class III', 'Class IV', 'Class V']
 
@@ -24,7 +25,6 @@ export default function AdminDashboard() {
   const [schools, setSchools] = useState<School[]>([])
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null)
   const [students, setStudents] = useState<StudentWithProgress[]>([])
-  const [chapters, setChapters] = useState<Chapter[]>([])
   const [loading, setLoading] = useState(true)
   const [newSchoolName, setNewSchoolName] = useState('')
   const [creatingSchool, setCreatingSchool] = useState(false)
@@ -64,12 +64,8 @@ export default function AdminDashboard() {
 
   async function loadSchoolData(joiningCode: string) {
     try {
-      const [studentsData, chaptersData] = await Promise.all([
-        getAllStudentsWithProgress(joiningCode),
-        getChaptersForSchool(joiningCode)
-      ])
+      const studentsData = await getAllStudentsWithProgress(joiningCode)
       setStudents(studentsData)
-      setChapters(chaptersData)
     } catch (err) {
       setError('Failed to load school data.')
       console.error(err)
@@ -99,6 +95,17 @@ export default function AdminDashboard() {
       console.error(err)
     } finally {
       setCreatingSchool(false)
+    }
+  }
+
+  async function handleDeleteStudent(studentId: string, studentName: string) {
+    if (!confirm(`Delete "${studentName}"? This will remove all their progress too.`)) return
+    try {
+      await deleteStudent(studentId)
+      setStudents(prev => prev.filter(s => s.id !== studentId))
+    } catch (err) {
+      setError('Failed to delete student.')
+      console.error(err)
     }
   }
 
@@ -230,37 +237,24 @@ export default function AdminDashboard() {
 
             {/* Chapters */}
             <section className="bg-white rounded-2xl shadow p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-black text-gray-800 text-base">
-                  Chapters ({chapters.length})
-                </h2>
-                <Link
-                  to="/admin/upload"
-                  className="text-sm text-indigo-600 font-bold hover:underline"
-                >
-                  + Upload
-                </Link>
-              </div>
-              {chapters.length === 0 ? (
-                <p className="text-gray-400 text-sm">No chapters uploaded yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {chapters.map(ch => (
-                    <div key={ch.id} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2">
+              <h2 className="font-black text-gray-800 text-base mb-3">
+                Chapters ({CHAPTERS.length} days built-in)
+              </h2>
+              <div className="space-y-2">
+                  {CHAPTERS.map(ch => (
+                    <div key={ch.day} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2">
                       <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0">
-                        {ch.day_number}
+                        {ch.day}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-800 text-sm truncate">{ch.title}</p>
                         <p className="text-xs text-gray-500">
-                          {Array.isArray(ch.content) ? ch.content.length : 0} sentences
-                          {ch.pdf_url ? ' · PDF' : ''}
+                          Week {ch.week} · {ch.sentences.length} sentences · {ch.vocabulary.length} words
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
             </section>
 
             {/* Students */}
@@ -327,17 +321,18 @@ export default function AdminDashboard() {
                         <th className="pb-2 font-bold">Class</th>
                         <th className="pb-2 font-bold">Code</th>
                         <th className="pb-2 font-bold text-right">Days ✓</th>
-                        <th className="pb-2 font-bold text-right">Revisions</th>
+                        <th className="pb-2 font-bold text-right">Rev.</th>
+                        <th className="pb-2 font-bold"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {students.map(student => {
-                        const completedDays = student.progress.filter(p => p.revision_count >= 10).length
-                        const totalRevisions = student.progress.reduce((sum, p) => sum + p.revision_count, 0)
+                        const completedDays = student.progress.filter((p: Progress) => p.revision_count >= 10).length
+                        const totalRevisions = student.progress.reduce((sum: number, p: Progress) => sum + p.revision_count, 0)
                         return (
                           <tr key={student.id} className="border-b border-gray-50 hover:bg-gray-50">
                             <td className="py-2 font-semibold text-gray-800">{student.name}</td>
-                            <td className="py-2 text-gray-600">{student.class}</td>
+                            <td className="py-2 text-gray-600 text-xs">{student.class}</td>
                             <td className="py-2">
                               <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg font-bold tracking-widest">
                                 {student.joining_code}
@@ -345,6 +340,14 @@ export default function AdminDashboard() {
                             </td>
                             <td className="py-2 text-right font-bold text-green-600">{completedDays}</td>
                             <td className="py-2 text-right font-bold text-indigo-600">{totalRevisions}</td>
+                            <td className="py-2 text-right">
+                              <button
+                                onClick={() => handleDeleteStudent(student.id, student.name)}
+                                className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 rounded hover:bg-red-50 transition"
+                              >
+                                🗑
+                              </button>
+                            </td>
                           </tr>
                         )
                       })}

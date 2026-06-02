@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase, getSchoolsForAdmin, uploadChapterPDF, createChapter } from '../../lib/supabase'
+import { supabase, getSchoolsForAdmin } from '../../lib/supabase'
 import { School } from '../../types'
 
 async function extractTextFromPDF(file: File): Promise<string[]> {
@@ -108,26 +108,9 @@ export default function UploadChapter() {
       return
     }
 
-    setLoading(true)
-    try {
-      let pdfUrl = ''
-      if (file && inputMode === 'pdf') {
-        pdfUrl = await uploadChapterPDF(file, selectedSchool)
-      }
-      await createChapter(dayNumber, title.trim(), sentences, pdfUrl, selectedSchool)
-      setSuccess(`Chapter "${title}" saved for Day ${dayNumber}!`)
-      setTitle('')
-      setFile(null)
-      setPreview([])
-      setManualText('')
-      setDayNumber(prev => prev + 1)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Upload failed'
-      setError(msg)
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+    // Chapters are now built into the app via src/data/chapters.ts
+    // This page is kept for future custom chapter additions
+    setError('Chapters are now built into the app. Edit src/data/chapters.ts to add more.')
   }
 
   return (
