@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { supabase, getSchoolsForAdmin, getAllStudentsWithProgress, createSchool, createStudent, deleteStudent } from '../../lib/supabase'
 import { School, Progress } from '../../types'
 import { CHAPTERS } from '../../data/chapters'
@@ -38,11 +38,18 @@ export default function AdminDashboard() {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        navigate('/admin')
-        return
+    // Restore real session if we came back from a preview
+    if (localStorage.getItem('admin_preview')) {
+      localStorage.removeItem('admin_preview')
+      const raw = localStorage.getItem('student_session')
+      if (raw) {
+        const s = JSON.parse(raw)
+        if (s._prev) localStorage.setItem('student_session', s._prev)
+        else localStorage.removeItem('student_session')
       }
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) { navigate('/admin'); return }
       loadSchools()
     })
   }, [navigate])
@@ -126,6 +133,15 @@ export default function AdminDashboard() {
     } finally {
       setAddingStudent(false)
     }
+  }
+
+  function handlePreviewDay(day: number) {
+    // Inject a temporary admin preview session so Chapter.tsx doesn't redirect
+    const prev = localStorage.getItem('student_session')
+    const preview = { id: 'admin-preview', name: 'Teacher Preview', class: 'Admin', joining_code: 'ADMIN0', _prev: prev }
+    localStorage.setItem('student_session', JSON.stringify(preview))
+    localStorage.setItem('admin_preview', '1')
+    navigate(`/chapter/${day}`)
   }
 
   async function handleLogout() {
@@ -253,6 +269,12 @@ export default function AdminDashboard() {
                           Week {ch.week} · {ch.sentences.length} sentences · {ch.vocabulary.length} words
                         </p>
                       </div>
+                      <button
+                        onClick={() => handlePreviewDay(ch.day)}
+                        className="shrink-0 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition"
+                      >
+                        Preview
+                      </button>
                     </div>
                   ))}
                 </div>

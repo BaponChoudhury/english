@@ -101,6 +101,7 @@ export default function Chapter() {
     const s: StudentSession = JSON.parse(raw)
     setSession(s)
     if (!chapter) { navigate('/dashboard'); return }
+    if (s.id === 'admin-preview') { setLoading(false); return }
     getOrCreateProgress(s.id, `day-${chapter.day}`)
       .then(p => setProgress(p))
       .catch(console.error)
@@ -156,6 +157,11 @@ export default function Chapter() {
         </div>
       </header>
 
+      {session?.id === 'admin-preview' && (
+        <div className="bg-amber-400 text-amber-900 text-xs font-black px-4 py-1.5 text-center">
+          👩‍🏫 Admin Preview Mode — progress will not be saved
+        </div>
+      )}
       {/* Phase tabs — only already-visited tabs are tappable */}
       <div className="flex bg-white border-b border-gray-100 px-2 pt-2 gap-1">
         {tabs.map((p, i) => {
@@ -222,7 +228,7 @@ export default function Chapter() {
 
         {phase === 'complete' && (
           <CompletePhase score={quizScore} total={quiz.length} currentRevisions={progress?.revision_count ?? 0}
-            studentId={session?.id ?? ''} dayKey={`day-${chapter.day}`}
+            studentId={session?.id ?? ''} dayKey={`day-${chapter.day}`} isPreview={session?.id === 'admin-preview'}
             onGoBack={() => navigate('/dashboard')}
             onRepeat={() => {
               setPhase('vocab')
@@ -545,14 +551,15 @@ function QuizPhase({ question, questionNumber, total, selectedAnswer, onSelect, 
 
 // ── CompletePhase — counts revision here (student has spoken all sentences) ───
 
-function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGoBack, onRepeat }: {
+function CompletePhase({ score, total, currentRevisions, studentId, dayKey, isPreview, onGoBack, onRepeat }: {
   score: number; total: number; currentRevisions: number
-  studentId: string; dayKey: string; onGoBack: () => void; onRepeat: () => void
+  studentId: string; dayKey: string; isPreview?: boolean; onGoBack: () => void; onRepeat: () => void
 }) {
-  const [saving, setSaving] = useState(true)
+  const [saving, setSaving] = useState(!isPreview)
   const [newRevisions, setNewRevisions] = useState(currentRevisions)
 
   useEffect(() => {
+    if (isPreview) return
     incrementRevision(studentId, dayKey)
       .then(p => setNewRevisions(p.revision_count))
       .catch(console.error)
