@@ -1,39 +1,35 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { validateJoiningCode, getOrCreateStudent } from '../lib/supabase'
+import { validateStudentJoiningCode } from '../lib/supabase'
 import AnimatedCharacter from '../components/AnimatedCharacter'
-
-const CLASSES = ['Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10']
 
 export default function Login() {
   const navigate = useNavigate()
   const [joiningCode, setJoiningCode] = useState('')
-  const [name, setName] = useState('')
-  const [studentClass, setStudentClass] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!joiningCode.trim() || !name.trim() || !studentClass) {
-      setError('Please fill in all fields.')
+    if (!joiningCode.trim()) {
+      setError('Please enter your joining code.')
       return
     }
     setLoading(true)
     try {
-      const school = await validateJoiningCode(joiningCode.trim())
-      if (!school) {
+      const student = await validateStudentJoiningCode(joiningCode.trim())
+      if (!student) {
         setError('Invalid joining code. Please check with your teacher.')
         setLoading(false)
         return
       }
-      const student = await getOrCreateStudent(name.trim(), studentClass, joiningCode.trim())
       const session = {
         id: student.id,
         name: student.name,
         class: student.class,
-        joining_code: student.joining_code
+        joining_code: student.joining_code,
+        school_code: student.school_code
       }
       localStorage.setItem('student_session', JSON.stringify(session))
       navigate('/dashboard')
@@ -52,7 +48,7 @@ export default function Login() {
           <AnimatedCharacter size={140} />
         </div>
         <h1 className="text-2xl font-black text-center text-indigo-700 mb-1">
-          English Learning App
+          English Buddy
         </h1>
         <p className="text-center text-gray-500 text-sm mb-5">
           Learn spoken English — one day at a time!
@@ -67,47 +63,19 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">
-              Joining Code
+              Your Joining Code
             </label>
             <input
               type="text"
               value={joiningCode}
               onChange={e => setJoiningCode(e.target.value.toUpperCase())}
               placeholder="e.g. ABC123"
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-lg font-bold tracking-widest uppercase focus:outline-none focus:border-indigo-500 transition"
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-2xl font-black tracking-widest uppercase text-center focus:outline-none focus:border-indigo-500 transition"
               autoComplete="off"
               autoCapitalize="characters"
+              maxLength={6}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              Your Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Enter your full name"
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 transition"
-              autoComplete="name"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              Class
-            </label>
-            <select
-              value={studentClass}
-              onChange={e => setStudentClass(e.target.value)}
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 transition bg-white"
-            >
-              <option value="">Select your class</option>
-              {CLASSES.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <p className="text-xs text-gray-400 mt-1 text-center">Ask your teacher for your personal code</p>
           </div>
 
           <button
@@ -115,7 +83,7 @@ export default function Login() {
             disabled={loading}
             className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg rounded-xl py-4 mt-2 transition-all shadow-lg disabled:opacity-60 touch-target"
           >
-            {loading ? 'Joining...' : 'Join & Learn! 🚀'}
+            {loading ? 'Checking...' : 'Start Learning! 🚀'}
           </button>
         </form>
 

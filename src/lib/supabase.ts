@@ -16,9 +16,10 @@ export const supabase = createClient(
 )
 
 // Student operations
-export async function validateJoiningCode(code: string) {
+export async function validateStudentJoiningCode(code: string) {
+  // Each student has their own unique joining code pre-issued by the teacher
   const { data, error } = await supabase
-    .from('schools')
+    .from('students')
     .select('*')
     .eq('joining_code', code.toUpperCase())
     .single()
@@ -26,28 +27,20 @@ export async function validateJoiningCode(code: string) {
   return data
 }
 
-export async function createStudent(name: string, studentClass: string, joiningCode: string) {
+export async function createStudent(name: string, studentClass: string, schoolCode: string) {
+  const joiningCode = generateStudentCode()
   const { data, error } = await supabase
     .from('students')
-    .insert({ name, class: studentClass, joining_code: joiningCode.toUpperCase() })
+    .insert({ name, class: studentClass, joining_code: joiningCode, school_code: schoolCode.toUpperCase() })
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function getOrCreateStudent(name: string, studentClass: string, joiningCode: string) {
-  // Check if student with same name and joining code already exists
-  const { data: existing } = await supabase
-    .from('students')
-    .select('*')
-    .eq('name', name)
-    .eq('joining_code', joiningCode.toUpperCase())
-    .eq('class', studentClass)
-    .maybeSingle()
-
-  if (existing) return existing
-  return createStudent(name, studentClass, joiningCode)
+function generateStudentCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
 // Chapter operations
@@ -130,11 +123,12 @@ export async function unlockNextChapter(studentId: string, nextChapterId: string
 }
 
 // Admin operations
-export async function getAllStudentsWithProgress(joiningCode: string) {
+export async function getAllStudentsWithProgress(schoolCode: string) {
   const { data: students, error } = await supabase
     .from('students')
     .select('*')
-    .eq('joining_code', joiningCode.toUpperCase())
+    .eq('school_code', schoolCode.toUpperCase())
+    .order('class', { ascending: true })
   if (error) throw error
 
   const studentsWithProgress = await Promise.all(

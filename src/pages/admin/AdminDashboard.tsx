@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase, getSchoolsForAdmin, getAllStudentsWithProgress, getChaptersForSchool, createSchool } from '../../lib/supabase'
+import { supabase, getSchoolsForAdmin, getAllStudentsWithProgress, getChaptersForSchool, createSchool, createStudent } from '../../lib/supabase'
 import { School, Chapter, Progress } from '../../types'
+
+const CLASSES = ['Nursery', 'LKG', 'UKG', 'Class I', 'Class II', 'Class III', 'Class IV', 'Class V']
 
 interface StudentWithProgress {
   id: string
   name: string
   class: string
   joining_code: string
+  school_code: string
   progress: Progress[]
 }
 
@@ -26,6 +29,11 @@ export default function AdminDashboard() {
   const [newSchoolName, setNewSchoolName] = useState('')
   const [creatingSchool, setCreatingSchool] = useState(false)
   const [showCreateSchool, setShowCreateSchool] = useState(false)
+  const [showAddStudent, setShowAddStudent] = useState(false)
+  const [newStudentName, setNewStudentName] = useState('')
+  const [newStudentClass, setNewStudentClass] = useState('')
+  const [addingStudent, setAddingStudent] = useState(false)
+  const [lastAddedCode, setLastAddedCode] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -91,6 +99,24 @@ export default function AdminDashboard() {
       console.error(err)
     } finally {
       setCreatingSchool(false)
+    }
+  }
+
+  async function handleAddStudent() {
+    if (!newStudentName.trim() || !newStudentClass || !selectedSchool) return
+    setAddingStudent(true)
+    setError('')
+    try {
+      const student = await createStudent(newStudentName.trim(), newStudentClass, selectedSchool.joining_code)
+      setLastAddedCode(student.joining_code)
+      setNewStudentName('')
+      setNewStudentClass('')
+      await loadSchoolData(selectedSchool.joining_code)
+    } catch (err) {
+      setError('Failed to add student. Please try again.')
+      console.error(err)
+    } finally {
+      setAddingStudent(false)
     }
   }
 
@@ -239,15 +265,59 @@ export default function AdminDashboard() {
 
             {/* Students */}
             <section className="bg-white rounded-2xl shadow p-4">
-              <h2 className="font-black text-gray-800 text-base mb-3">
-                Students ({students.length})
-              </h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-black text-gray-800 text-base">Students ({students.length})</h2>
+                <button
+                  onClick={() => { setShowAddStudent(v => !v); setLastAddedCode('') }}
+                  className="text-sm text-indigo-600 font-bold hover:underline"
+                >
+                  + Add Student
+                </button>
+              </div>
+
+              {showAddStudent && (
+                <div className="bg-indigo-50 rounded-xl p-3 mb-3 space-y-2">
+                  <input
+                    type="text"
+                    value={newStudentName}
+                    onChange={e => setNewStudentName(e.target.value)}
+                    placeholder="Student full name"
+                    className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+                  />
+                  <select
+                    value={newStudentClass}
+                    onChange={e => setNewStudentClass(e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400 bg-white"
+                  >
+                    <option value="">Select class</option>
+                    {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <button
+                    onClick={handleAddStudent}
+                    disabled={addingStudent || !newStudentName.trim() || !newStudentClass}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition disabled:opacity-60"
+                  >
+                    {addingStudent ? 'Adding...' : 'Add & Generate Code'}
+                  </button>
+                  {lastAddedCode && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                      <p className="text-xs text-green-600 font-bold mb-1">Student added! Share this code:</p>
+                      <p className="text-2xl font-black text-green-700 tracking-widest">{lastAddedCode}</p>
+                      <button
+                        onClick={() => { navigator.clipboard?.writeText(lastAddedCode); alert('Copied!') }}
+                        className="mt-1 text-xs text-green-600 underline"
+                      >Copy code</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {loading ? (
                 <div className="py-4 text-center">
                   <div className="w-8 h-8 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
               ) : students.length === 0 ? (
-                <p className="text-gray-400 text-sm">No students have joined yet.</p>
+                <p className="text-gray-400 text-sm">No students added yet. Add students above.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -255,8 +325,9 @@ export default function AdminDashboard() {
                       <tr className="text-left text-gray-500 border-b border-gray-100">
                         <th className="pb-2 font-bold">Name</th>
                         <th className="pb-2 font-bold">Class</th>
-                        <th className="pb-2 font-bold text-right">Days Done</th>
-                        <th className="pb-2 font-bold text-right">Total Revisions</th>
+                        <th className="pb-2 font-bold">Code</th>
+                        <th className="pb-2 font-bold text-right">Days ✓</th>
+                        <th className="pb-2 font-bold text-right">Revisions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -267,6 +338,11 @@ export default function AdminDashboard() {
                           <tr key={student.id} className="border-b border-gray-50 hover:bg-gray-50">
                             <td className="py-2 font-semibold text-gray-800">{student.name}</td>
                             <td className="py-2 text-gray-600">{student.class}</td>
+                            <td className="py-2">
+                              <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg font-bold tracking-widest">
+                                {student.joining_code}
+                              </span>
+                            </td>
                             <td className="py-2 text-right font-bold text-green-600">{completedDays}</td>
                             <td className="py-2 text-right font-bold text-indigo-600">{totalRevisions}</td>
                           </tr>
