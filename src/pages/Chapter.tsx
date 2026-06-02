@@ -229,7 +229,7 @@ export default function Chapter() {
         {phase === 'complete' && (
           <CompletePhase score={quizScore} total={quiz.length} currentRevisions={progress?.revision_count ?? 0}
             studentId={session?.id ?? ''} dayKey={`day-${chapter.day}`} isPreview={session?.id === 'admin-preview'}
-            onGoBack={() => navigate('/dashboard')}
+            onGoBack={() => navigate(session?.id === 'admin-preview' ? '/admin/dashboard' : '/dashboard')}
             onRepeat={() => {
               setPhase('vocab')
               setVocabIndex(0)
@@ -559,7 +559,11 @@ function CompletePhase({ score, total, currentRevisions, studentId, dayKey, isPr
   const [newRevisions, setNewRevisions] = useState(currentRevisions)
 
   useEffect(() => {
-    if (isPreview) return
+    if (isPreview) {
+      // Simulate increment locally so teacher can see what student sees
+      setNewRevisions(r => r + 1)
+      return
+    }
     incrementRevision(studentId, dayKey)
       .then(p => setNewRevisions(p.revision_count))
       .catch(console.error)
@@ -601,7 +605,7 @@ function CompletePhase({ score, total, currentRevisions, studentId, dayKey, isPr
       </button>
       <button onClick={onGoBack}
         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 text-lg shadow-lg touch-target">
-        ← Back to Dashboard
+        {isPreview ? '← Back to Admin Panel' : '← Back to Dashboard'}
       </button>
     </div>
   )
