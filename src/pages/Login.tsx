@@ -25,8 +25,8 @@ export default function Login() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
 
-  // If already have a valid local session, go straight to dashboard
   useEffect(() => {
+    // Already have a local session → go straight to dashboard
     const raw = localStorage.getItem('student_session')
     if (raw) {
       try {
@@ -35,9 +35,22 @@ export default function Login() {
       } catch {}
     }
 
+    // Handle the #access_token hash that Supabase appends after OAuth redirect
+    const hash = window.location.hash
+    if (hash.includes('access_token')) {
+      // Let Supabase parse the hash — getSession will have the user after this
+      supabase.auth.getSession().then(async ({ data }) => {
+        if (data.session) {
+          window.history.replaceState(null, '', window.location.pathname)
+          await handleAuthSession(data.session.user.id)
+        }
+      })
+      return
+    }
+
+    // Normal page load — check if already signed in via Supabase auth
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) return
-      await handleAuthSession(data.session.user.id)
+      if (data.session) await handleAuthSession(data.session.user.id)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -62,9 +75,12 @@ export default function Login() {
   async function handleGoogleSignIn() {
     setError('')
     setLoading(true)
+    const redirectTo = window.location.hostname === 'localhost'
+      ? window.location.origin
+      : 'https://englishbuddy.pveschool.in'
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin }
+      options: { redirectTo }
     })
     if (error) { setError(error.message); setLoading(false) }
   }
