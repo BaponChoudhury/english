@@ -26,7 +26,21 @@ export default function Login() {
   const [info, setInfo] = useState('')
 
   useEffect(() => {
-    // Already have a local session → go straight to dashboard
+    // OAuth redirect: hash must be handled FIRST before any localStorage check
+    // Supabase appends #access_token=... after Google sign-in
+    if (window.location.hash.includes('access_token')) {
+      supabase.auth.getSession().then(async ({ data }) => {
+        window.history.replaceState(null, '', window.location.pathname)
+        if (data.session) {
+          // Clear any stale local session so link screen is not skipped
+          localStorage.removeItem('student_session')
+          await handleAuthSession(data.session.user.id)
+        }
+      })
+      return
+    }
+
+    // Already have a valid local session → go straight to dashboard
     const raw = localStorage.getItem('student_session')
     if (raw) {
       try {
@@ -35,20 +49,7 @@ export default function Login() {
       } catch {}
     }
 
-    // Handle the #access_token hash that Supabase appends after OAuth redirect
-    const hash = window.location.hash
-    if (hash.includes('access_token')) {
-      // Let Supabase parse the hash — getSession will have the user after this
-      supabase.auth.getSession().then(async ({ data }) => {
-        if (data.session) {
-          window.history.replaceState(null, '', window.location.pathname)
-          await handleAuthSession(data.session.user.id)
-        }
-      })
-      return
-    }
-
-    // Normal page load — check if already signed in via Supabase auth
+    // Check if already signed in via Supabase (e.g. refreshed page after email login)
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) await handleAuthSession(data.session.user.id)
     })
@@ -155,22 +156,32 @@ export default function Login() {
         {/* ── Link joining code (first-time after OAuth) ── */}
         {screen === 'link' && (
           <form onSubmit={handleLinkCode} className="space-y-4">
-            <div className="bg-indigo-50 rounded-2xl p-4 text-center">
-              <p className="text-indigo-700 font-bold text-sm">Almost there!</p>
-              <p className="text-indigo-500 text-xs mt-1">Enter the joining code your teacher gave you to link your account. You only need to do this once.</p>
+            <div className="bg-indigo-50 rounded-2xl p-4 text-center space-y-1">
+              <div className="text-3xl">🎉</div>
+              <p className="text-indigo-700 font-black text-base">Account created!</p>
+              <p className="text-indigo-500 text-sm">Now enter the <strong>joining code</strong> your teacher gave you.<br/>You only need to do this once.</p>
             </div>
-            <input
-              type="text"
-              value={joiningCode}
-              onChange={e => setJoiningCode(e.target.value.toUpperCase())}
-              placeholder="e.g. ABC123"
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-2xl font-black tracking-widest uppercase text-center focus:outline-none focus:border-indigo-500"
-              autoComplete="off"
-              maxLength={6}
-            />
-            <button type="submit" disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg rounded-xl py-4 transition shadow-lg disabled:opacity-60 touch-target">
-              {loading ? 'Linking…' : 'Link & Start Learning 🚀'}
+            <div>
+              <label className="block text-sm font-bold text-gray-600 mb-1 text-center">Your Joining Code</label>
+              <input
+                type="text"
+                value={joiningCode}
+                onChange={e => setJoiningCode(e.target.value.toUpperCase())}
+                placeholder="e.g. ABC123"
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-3xl font-black tracking-widest uppercase text-center focus:outline-none focus:border-indigo-500"
+                autoComplete="off"
+                autoFocus
+                maxLength={6}
+              />
+              <p className="text-xs text-gray-400 mt-1 text-center">Ask your teacher if you don't have it</p>
+            </div>
+            <button type="submit" disabled={loading || joiningCode.length < 4}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg rounded-xl py-4 transition shadow-lg disabled:opacity-60 touch-target">
+              {loading ? 'Linking…' : '✅ Link & Start Learning!'}
+            </button>
+            <button type="button" onClick={() => supabase.auth.signOut().then(() => setScreen('signin'))}
+              className="w-full text-gray-400 text-sm font-semibold py-2 hover:text-gray-600">
+              ← Use a different account
             </button>
           </form>
         )}
