@@ -156,16 +156,22 @@ export default function Chapter() {
         </div>
       </header>
 
-      {/* Phase tabs */}
+      {/* Phase tabs — only already-visited tabs are tappable */}
       <div className="flex bg-white border-b border-gray-100 px-2 pt-2 gap-1">
-        {tabs.map(p => (
-          <button key={p} onClick={() => setPhase(p)}
-            className={`flex-1 py-2 text-xs font-bold rounded-t-lg transition ${
-              phase === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'
-            }`}>
-            {tabLabels[p]}
-          </button>
-        ))}
+        {tabs.map((p, i) => {
+          const phaseOrder = tabs.indexOf(phase)
+          const visited = i <= phaseOrder
+          return (
+            <button key={p} onClick={() => visited && setPhase(p)} disabled={!visited}
+              className={`flex-1 py-2 text-xs font-bold rounded-t-lg transition ${
+                phase === p ? 'bg-indigo-600 text-white' :
+                visited ? 'text-gray-500 hover:bg-gray-100' :
+                'text-gray-300 cursor-not-allowed'
+              }`}>
+              {tabLabels[p]}
+            </button>
+          )
+        })}
       </div>
 
       <div className="flex-1 flex flex-col p-4 overflow-auto">
@@ -366,7 +372,7 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* Action buttons — NO skip, student must say it */}
       <div className="flex gap-3 w-full">
         <button onClick={replay}
           className="flex-1 bg-amber-400 hover:bg-amber-500 text-white font-black rounded-xl py-4 touch-target">
@@ -383,17 +389,15 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
             🎤 Listening…
           </div>
         )}
+        {state === 'playing' && (
+          <div className="flex-1 bg-gray-200 text-gray-400 font-black rounded-xl py-4 text-center">
+            🔊 Listen first…
+          </div>
+        )}
       </div>
-
-      {/* Skip button */}
-      <div className="flex gap-3 w-full">
-        <button onClick={onPrev} disabled={index === 0}
-          className="flex-1 text-gray-400 text-sm font-semibold disabled:opacity-20 py-2">← Prev</button>
-        <button onClick={onNext}
-          className="flex-1 text-gray-400 text-sm font-semibold py-2">
-          {isLast ? 'Done →' : 'Skip →'}
-        </button>
-      </div>
+      {/* Prev only — no skip forward */}
+      <button onClick={onPrev} disabled={index === 0}
+        className="text-gray-400 text-sm font-semibold disabled:opacity-20 py-1">← Previous sentence</button>
     </div>
   )
 }
