@@ -110,12 +110,12 @@ export default function Chapter() {
 
       {/* Phase tabs */}
       <div className="flex bg-white border-b border-gray-100 px-2 pt-2 gap-1">
-        {(['vocab', 'lesson', 'dialogue', 'quiz'] as Phase[]).map((p, i) => (
+        {(['vocab', 'lesson', 'dialogue', 'quiz'] as Phase[]).filter(p => !(p === 'quiz' && chapter.day === 1)).map((p, i) => (
           <button key={p} onClick={() => setPhase(p)}
             className={`flex-1 py-2 text-xs font-bold rounded-t-lg transition ${
               phase === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'
             }`}>
-            {['📚 Words', '🗣️ Speak', '💬 Talk', '📝 Quiz'][i]}
+            {(['📚 Words', '🗣️ Speak', '💬 Talk', '📝 Quiz'] as const).filter((_, j) => !(j === 3 && chapter.day === 1))[i]}
           </button>
         ))}
       </div>
@@ -137,6 +137,7 @@ export default function Chapter() {
             onNext={() => {
               setActiveLine(-1)
               if (dialogueIndex < chapter.dialogues.length - 1) { setDialogueIndex(i => i + 1) }
+              else if (chapter.day === 1) { setPhase('complete') }
               else { const q = buildQuiz(chapter); setQuiz(q); setQuizIndex(0); setQuizScore(0); setSelectedAnswer(null); setPhase('quiz') }
             }}
             onPrev={() => { setActiveLine(-1); setDialogueIndex(i => Math.max(0, i - 1)) }} />
@@ -209,6 +210,10 @@ function VocabPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
 }) {
   const item = chapter.vocabulary[index]
   const isLast = index === chapter.vocabulary.length - 1
+
+  // Auto-play each word when index changes (user already tapped to get here)
+  useEffect(() => { onSpeak(item.word) }, [index])
+
   return (
     <div className="flex flex-col items-center gap-4 max-w-lg mx-auto w-full">
       <TeacherAvatar active={speaking} size={64} />
@@ -218,7 +223,7 @@ function VocabPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
         onClick={() => onSpeak(item.word)}>
         {item.emoji && <div className="text-6xl mb-3">{item.emoji}</div>}
         <p className="text-3xl font-black text-indigo-700">{item.word}</p>
-        <p className="text-sm text-gray-400 mt-2">👆 Tap to hear</p>
+        <p className="text-sm text-gray-400 mt-2">🔊 Tap to hear again</p>
       </button>
       <div className="flex gap-3 w-full">
         <button onClick={onPrev} disabled={index === 0}
@@ -240,7 +245,10 @@ function LessonPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
 }) {
   const item = chapter.sentences[index]
   const isLast = index === chapter.sentences.length - 1
-  // No auto-speak — requires user tap (Android blocks auto audio)
+
+  // Auto-play each sentence when index changes
+  useEffect(() => { onSpeak(item.text) }, [index])
+
   return (
     <div className="flex flex-col items-center gap-4 max-w-lg mx-auto w-full">
       <TeacherAvatar active={speaking} size={64} />
@@ -249,11 +257,11 @@ function LessonPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
         {item.emoji && <div className="text-5xl mb-3">{item.emoji}</div>}
         <p className="text-2xl font-black text-gray-800 leading-relaxed">{item.text}</p>
       </div>
-      <p className="text-sm text-indigo-500 font-semibold">Listen first, then say it out loud! 🗣️</p>
+      <p className="text-sm text-indigo-500 font-semibold">Say it out loud! 🗣️</p>
       <div className="flex gap-3 w-full">
         <button onClick={() => onSpeak(item.text)}
           className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-white font-black rounded-xl py-4 touch-target text-lg">
-          🔊 Listen
+          🔊 Again
         </button>
         <button onClick={onNext}
           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 touch-target">
