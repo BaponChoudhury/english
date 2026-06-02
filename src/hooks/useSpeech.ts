@@ -12,7 +12,8 @@ interface UseSpeechOptions {
 export function useSpeech({ language, onResult, onError }: UseSpeechOptions) {
   const [status, setStatus] = useState<SpeechStatus>('idle')
   const [interimTranscript, setInterimTranscript] = useState('')
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
 
   const isSupported = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
@@ -23,11 +24,12 @@ export function useSpeech({ language, onResult, onError }: UseSpeechOptions) {
       return
     }
 
-    const SpeechRecognitionClass =
-      (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition ||
-      window.SpeechRecognition
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any
+    const SpeechRecognitionClass = w.SpeechRecognition || w.webkitSpeechRecognition
 
-    const recognition = new SpeechRecognitionClass()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SpeechRecognitionClass()
     recognition.lang = SPEECH_LANG_CODES[language]
     recognition.interimResults = true
     recognition.maxAlternatives = 1
@@ -38,7 +40,8 @@ export function useSpeech({ language, onResult, onError }: UseSpeechOptions) {
       setInterimTranscript('')
     }
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
       let interim = ''
       let final = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -56,7 +59,8 @@ export function useSpeech({ language, onResult, onError }: UseSpeechOptions) {
       }
     }
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
       setStatus('error')
       const messages: Record<string, string> = {
         'not-allowed': 'Microphone permission denied. Please allow microphone access.',
