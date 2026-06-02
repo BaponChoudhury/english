@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getOrCreateProgress, incrementRevision } from '../lib/supabase'
 import { StudentSession, Progress, QuizQuestion } from '../types'
-import { speakText } from '../lib/translation'
+import { speakAs, getSpeakerRole } from '../lib/translation'
 import ProgressBar from '../components/ProgressBar'
 import { CHAPTERS, ChapterData } from '../data/chapters'
 
@@ -68,9 +68,9 @@ export default function Chapter() {
     return () => { window.speechSynthesis?.cancel() }
   }, [dayNum, navigate])
 
-  function speak(text: string) {
+  function speak(text: string, role: 'teacher' | 'student' = 'teacher') {
     setSpeaking(true)
-    speakText(text)
+    speakAs(text, role)
     const dur = Math.max(1500, text.length * 70 + 800)
     setTimeout(() => setSpeaking(false), dur)
   }
@@ -78,8 +78,9 @@ export default function Chapter() {
   function startDialoguePlayback(lines: { speaker: string; text: string }[]) {
     let delay = 0
     lines.forEach((line, i) => {
+      const role = isTeacher(line.speaker) ? 'teacher' : 'student'
       setTimeout(() => setActiveLine(i), delay)
-      setTimeout(() => speakText(line.text), delay + 100)
+      setTimeout(() => speakAs(line.text, role), delay + 100)
       delay += Math.max(1800, line.text.length * 75 + 1000)
     })
     setTimeout(() => setActiveLine(-1), delay)
@@ -127,7 +128,8 @@ export default function Chapter() {
             onPrev={() => setVocabIndex(i => Math.max(0, i - 1))} />
         )}
         {phase === 'lesson' && (
-          <LessonPhase chapter={chapter} index={sentenceIndex} speaking={speaking} onSpeak={speak}
+          <LessonPhase chapter={chapter} index={sentenceIndex} speaking={speaking}
+            onSpeak={(text, role) => speak(text, role)}
             onNext={() => { if (sentenceIndex < chapter.sentences.length - 1) setSentenceIndex(i => i + 1); else setPhase('dialogue') }}
             onPrev={() => setSentenceIndex(i => Math.max(0, i - 1))} />
         )}
@@ -241,25 +243,35 @@ function VocabPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
 
 function LessonPhase({ chapter, index, speaking, onSpeak, onNext, onPrev }: {
   chapter: ChapterData; index: number; speaking: boolean
-  onSpeak: (t: string) => void; onNext: () => void; onPrev: () => void
+  onSpeak: (t: string, role: 'teacher' | 'student') => void; onNext: () => void; onPrev: () => void
 }) {
   const item = chapter.sentences[index]
   const isLast = index === chapter.sentences.length - 1
+  const role = getSpeakerRole(item.text)
+  const isStudent = role === 'student'
 
-  // Auto-play each sentence when index changes
-  useEffect(() => { onSpeak(item.text) }, [index])
+  // Auto-play with correct role voice when sentence changes
+  useEffect(() => { onSpeak(item.text, role) }, [index])
 
   return (
     <div className="flex flex-col items-center gap-4 max-w-lg mx-auto w-full">
-      <TeacherAvatar active={speaking} size={64} />
+      {/* Show correct character */}
+      <div className="flex gap-6 items-end justify-center">
+        <TeacherAvatar active={speaking && !isStudent} size={64} />
+        <StudentAvatar name="Student" active={speaking && isStudent} size={64} />
+      </div>
+      {/* Role label */}
+      <div className={`px-4 py-1 rounded-full text-xs font-black ${isStudent ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+        {isStudent ? '👦 Student says:' : '👩‍🏫 Teacher says:'}
+      </div>
       <ProgressBar current={index + 1} total={chapter.sentences.length} label="Sentences" />
-      <div className="bg-white rounded-3xl shadow-lg p-6 w-full border-2 border-purple-100 text-center">
+      <div className={`bg-white rounded-3xl shadow-lg p-6 w-full border-2 text-center ${isStudent ? 'border-blue-100' : 'border-purple-100'}`}>
         {item.emoji && <div className="text-5xl mb-3">{item.emoji}</div>}
         <p className="text-2xl font-black text-gray-800 leading-relaxed">{item.text}</p>
       </div>
       <p className="text-sm text-indigo-500 font-semibold">Say it out loud! 🗣️</p>
       <div className="flex gap-3 w-full">
-        <button onClick={() => onSpeak(item.text)}
+        <button onClick={() => onSpeak(item.text, role)}
           className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-white font-black rounded-xl py-4 touch-target text-lg">
           🔊 Again
         </button>
