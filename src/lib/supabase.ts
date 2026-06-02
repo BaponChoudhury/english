@@ -19,6 +19,27 @@ export async function validateStudentJoiningCode(code: string) {
   return data ?? null
 }
 
+export async function getStudentByAuthId(authUserId: string) {
+  const { data } = await supabase
+    .from('students')
+    .select('*')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle()
+  return data ?? null
+}
+
+export async function linkStudentToAuth(joiningCode: string, authUserId: string) {
+  const { data, error } = await supabase
+    .from('students')
+    .update({ auth_user_id: authUserId })
+    .eq('joining_code', joiningCode.toUpperCase())
+    .is('auth_user_id', null)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function createStudent(name: string, studentClass: string, schoolCode: string) {
   const joiningCode = generateStudentCode()
   const { data, error } = await supabase
