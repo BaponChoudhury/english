@@ -37,7 +37,7 @@ export default function App() {
           }
         />
         <Route
-          path="/chapter/:id"
+          path="/chapter/:dayNum"
           element={
             <RequireStudent>
               <Chapter />
