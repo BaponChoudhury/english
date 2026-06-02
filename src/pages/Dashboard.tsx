@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { getProgressForStudent } from '../lib/supabase'
 import { StudentSession, Progress } from '../types'
 import { CHAPTERS } from '../data/chapters'
@@ -61,20 +61,25 @@ function computeDayStatuses(progressList: Progress[]): DayStatus[] {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [session, setSession] = useState<StudentSession | null>(null)
   const [dayStatuses, setDayStatuses] = useState<DayStatus[]>([])
   const [loading, setLoading] = useState(true)
+
+  const loadProgress = useCallback((s: StudentSession) => {
+    getProgressForStudent(s.id)
+      .then(progressList => setDayStatuses(computeDayStatuses(progressList)))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
   useEffect(() => {
     const raw = localStorage.getItem('student_session')
     if (!raw) { navigate('/'); return }
     const s: StudentSession = JSON.parse(raw)
     setSession(s)
-    getProgressForStudent(s.id)
-      .then(progressList => setDayStatuses(computeDayStatuses(progressList)))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [navigate])
+    loadProgress(s)
+  }, [navigate, location.key, loadProgress])
 
   function handleLogout() {
     localStorage.removeItem('student_session')

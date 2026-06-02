@@ -223,7 +223,18 @@ export default function Chapter() {
         {phase === 'complete' && (
           <CompletePhase score={quizScore} total={quiz.length} currentRevisions={progress?.revision_count ?? 0}
             studentId={session?.id ?? ''} dayKey={`day-${chapter.day}`}
-            onGoBack={() => navigate('/dashboard')} />
+            onGoBack={() => navigate('/dashboard')}
+            onRepeat={() => {
+              setPhase('vocab')
+              setVocabIndex(0)
+              setSentenceIndex(0)
+              setDialogueIndex(0)
+              setActiveLine(-1)
+              setQuizIndex(0)
+              setQuizScore(0)
+              setSelectedAnswer(null)
+              setQuiz([])
+            }} />
         )}
       </div>
     </div>
@@ -532,9 +543,9 @@ function QuizPhase({ question, questionNumber, total, selectedAnswer, onSelect, 
 
 // ── CompletePhase — counts revision here (student has spoken all sentences) ───
 
-function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGoBack }: {
+function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGoBack, onRepeat }: {
   score: number; total: number; currentRevisions: number
-  studentId: string; dayKey: string; onGoBack: () => void
+  studentId: string; dayKey: string; onGoBack: () => void; onRepeat: () => void
 }) {
   const [saving, setSaving] = useState(true)
   const [newRevisions, setNewRevisions] = useState(currentRevisions)
@@ -575,6 +586,10 @@ function CompletePhase({ score, total, currentRevisions, studentId, dayKey, onGo
           </>
         )}
       </div>
+      <button onClick={onRepeat}
+        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl py-4 text-lg shadow-lg touch-target">
+        🔄 Repeat this Lesson
+      </button>
       <button onClick={onGoBack}
         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 text-lg shadow-lg touch-target">
         ← Back to Dashboard
