@@ -409,6 +409,8 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
       {/* Prev only — no skip forward */}
       <button onClick={onPrev} disabled={index === 0}
         className="text-gray-400 text-sm font-semibold disabled:opacity-20 py-1">← Previous sentence</button>
+      <button onClick={onNext}
+        className="text-gray-300 text-xs font-semibold py-1 underline">Skip →</button>
     </div>
   )
 }
