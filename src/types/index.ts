@@ -26,10 +26,9 @@ export interface Chapter {
 export interface Progress {
   id: string
   student_id: string
-  chapter_id: string
+  day_key: string
   revision_count: number
   last_revised_at: string | null
-  unlocked_at: string
 }
 
 export interface StudentSession {

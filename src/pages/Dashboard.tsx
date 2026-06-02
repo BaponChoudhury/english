@@ -22,8 +22,8 @@ function computeDayStatuses(progressList: Progress[]): DayStatus[] {
   const progressMap = new Map<string, number>()
   const lastRevisedMap = new Map<string, string | null>()
   for (const p of progressList) {
-    progressMap.set(p.chapter_id, p.revision_count)
-    lastRevisedMap.set(p.chapter_id, p.last_revised_at ?? null)
+    progressMap.set(p.day_key, p.revision_count)
+    lastRevisedMap.set(p.day_key, p.last_revised_at ?? null)
   }
 
   return CHAPTERS.map((chapter, idx) => {

@@ -35,6 +35,7 @@ export default function AdminDashboard() {
   const [addingStudent, setAddingStudent] = useState(false)
   const [lastAddedCode, setLastAddedCode] = useState('')
   const [error, setError] = useState('')
+  const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -329,7 +330,10 @@ export default function AdminDashboard() {
                       {students.map(student => {
                         const completedDays = student.progress.filter((p: Progress) => p.revision_count >= 10).length
                         const totalRevisions = student.progress.reduce((sum: number, p: Progress) => sum + p.revision_count, 0)
+                        const progressMap = new Map(student.progress.map((p: Progress) => [p.day_key, p.revision_count]))
+                        const isExpanded = expandedStudent === student.id
                         return (
+                          <>
                           <tr key={student.id} className="border-b border-gray-50 hover:bg-gray-50">
                             <td className="py-2 font-semibold text-gray-800">{student.name}</td>
                             <td className="py-2 text-gray-600 text-xs">{student.class}</td>
@@ -338,9 +342,16 @@ export default function AdminDashboard() {
                                 {student.joining_code}
                               </span>
                             </td>
-                            <td className="py-2 text-right font-bold text-green-600">{completedDays}</td>
+                            <td className="py-2 text-right font-bold text-green-600">{completedDays}/14</td>
                             <td className="py-2 text-right font-bold text-indigo-600">{totalRevisions}</td>
-                            <td className="py-2 text-right">
+                            <td className="py-2 text-right flex gap-1 justify-end">
+                              <button
+                                onClick={() => setExpandedStudent(isExpanded ? null : student.id)}
+                                className="text-indigo-400 hover:text-indigo-600 text-xs font-bold px-2 py-1 rounded hover:bg-indigo-50 transition"
+                                title="View day-by-day progress"
+                              >
+                                {isExpanded ? '▲' : '▼'}
+                              </button>
                               <button
                                 onClick={() => handleDeleteStudent(student.id, student.name)}
                                 className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 rounded hover:bg-red-50 transition"
@@ -349,6 +360,25 @@ export default function AdminDashboard() {
                               </button>
                             </td>
                           </tr>
+                          {isExpanded && (
+                            <tr key={`${student.id}-detail`}>
+                              <td colSpan={6} className="pb-3 pt-0">
+                                <div className="bg-gray-50 rounded-xl p-3 grid grid-cols-7 gap-1.5">
+                                  {CHAPTERS.map(ch => {
+                                    const rev = progressMap.get(`day-${ch.day}`) ?? 0
+                                    const done = rev >= 10
+                                    return (
+                                      <div key={ch.day} className={`rounded-lg p-1.5 text-center border ${done ? 'bg-green-100 border-green-300' : rev > 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}>
+                                        <div className={`text-xs font-black ${done ? 'text-green-700' : rev > 0 ? 'text-yellow-700' : 'text-gray-400'}`}>D{ch.day}</div>
+                                        <div className={`text-xs font-bold ${done ? 'text-green-600' : 'text-gray-500'}`}>{rev}/10</div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </>
                         )
                       })}
                     </tbody>
