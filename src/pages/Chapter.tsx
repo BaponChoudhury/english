@@ -305,23 +305,17 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
     return () => clearTimeout(timer)
   }, [index])
 
-  async function listenForRepeat() {
+  function listenForRepeat() {
     const w = window as any
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition
-    if (!SR) { alert('Please use Chrome on Android for speech.'); return }
-
-    // Request mic permission explicitly — required on mobile before SpeechRecognition works
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(t => t.stop()) // release immediately, just needed for permission
-      setMicBlocked(false)
-    } catch {
+    if (!SR) {
       setMicBlocked(true)
-      setState('waiting')
       return
     }
 
+    setMicBlocked(false)
     setState('listening')
+
     const rec = new SR()
     rec.lang = 'en-US'
     rec.interimResults = false
@@ -340,10 +334,12 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
       }
     }
     rec.onerror = (event: any) => {
-      if (event.error === 'not-allowed') setMicBlocked(true)
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setMicBlocked(true)
+      }
       setState('waiting')
     }
-    rec.onend = () => { if (state === 'listening') setState('waiting') }
+    rec.onend = () => { setState(s => s === 'listening' ? 'waiting' : s) }
     rec.start()
   }
 
@@ -374,13 +370,20 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
         <p className="text-2xl font-black text-gray-800 leading-relaxed">{item.text}</p>
       </div>
 
-      {/* Mic blocked warning */}
+      {/* Mic blocked / not supported warning */}
       {micBlocked && (
-        <div className="bg-red-50 border-2 border-red-400 rounded-2xl px-4 py-3 w-full text-center">
-          <p className="text-red-700 font-black text-base">🎤 Microphone blocked!</p>
-          <p className="text-red-600 text-sm mt-1">
-            In Chrome: tap the 🔒 lock icon in the address bar → tap <strong>Microphone</strong> → allow → refresh the page.
-          </p>
+        <div className="bg-red-50 border-2 border-red-400 rounded-2xl px-4 py-3 w-full text-center space-y-2">
+          <p className="text-red-700 font-black text-base">🎤 Microphone not working</p>
+          {!(window as any).SpeechRecognition && !(window as any).webkitSpeechRecognition ? (
+            <p className="text-red-600 text-sm">Speech is not supported in this browser.<br/>Please open this site in <strong>Chrome</strong> on your Android phone.</p>
+          ) : (
+            <div className="text-red-600 text-sm text-left space-y-1">
+              <p className="font-bold text-center">How to allow microphone:</p>
+              <p>1. Tap the <strong>🔒 lock icon</strong> in Chrome's address bar</p>
+              <p>2. Tap <strong>Microphone</strong> → set to <strong>Allow</strong></p>
+              <p>3. <strong>Refresh</strong> the page and try again</p>
+            </div>
+          )}
         </div>
       )}
 
