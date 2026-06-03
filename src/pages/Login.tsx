@@ -108,13 +108,14 @@ export default function Login() {
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) throw error
-      setInfo('Check your email for a confirmation link, then come back and sign in.')
-      setScreen('signin')
+      const { error: signUpError } = await supabase.auth.signUp({ email, password })
+      if (signUpError) throw signUpError
+      // Sign in immediately — works once "Confirm email" is disabled in Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) throw signInError
+      if (data.session) await handleAuthSession(data.session.user.id)
     } catch (err: any) {
       setError(err.message || 'Sign up failed. Try again.')
-    } finally {
       setLoading(false)
     }
   }
@@ -231,7 +232,7 @@ export default function Login() {
         {screen === 'signup' && (
           <>
             <p className="text-center text-gray-600 text-sm font-semibold mb-4">
-              Create your account, then enter your joining code from your teacher.
+              Create your account with your email address.
             </p>
 
             <button onClick={handleGoogleSignIn} disabled={loading}
