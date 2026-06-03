@@ -57,7 +57,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Hello', 'Hi', 'Goodbye', 'Bye-bye'],
+    quizWords: [],
   },
   {
     day: 2,
@@ -100,7 +100,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Good morning', 'Good afternoon', 'Good evening', 'Good night', 'Thank you', 'You are welcome'],
+    quizWords: [],
   },
   {
     day: 3,
@@ -142,7 +142,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Happy', 'Fine', 'Sad', "It's okay", 'No need'],
+    quizWords: [],
   },
   {
     day: 4,
@@ -262,7 +262,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Please', 'Thank you', 'Here you are', "You're welcome", 'Can I have'],
+    quizWords: [],
   },
   {
     day: 6,
@@ -331,7 +331,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Sorry', 'Excuse me', "Don't worry", 'Be happy', "Don't cry", 'No problem'],
+    quizWords: [],
   },
   {
     day: 7,
@@ -389,7 +389,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Hello', 'Good morning', 'Thank you', 'Sorry', 'Excuse me', 'Please', 'My name is', "Don't worry"],
+    quizWords: [],
   },
 
   // ── WEEK 2 ──────────────────────────────────────────────────────────────────
@@ -434,7 +434,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Father', 'Mother', 'Papa', 'Mummy', 'Parents'],
+    quizWords: [],
   },
   {
     day: 9,
@@ -469,7 +469,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Brother', 'Sister', 'Siblings', 'Baby', 'I love my brother'],
+    quizWords: [],
   },
   {
     day: 10,
@@ -513,7 +513,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Grandfather', 'Grandmother', 'Grandpa', 'Grandma', 'Grandparents'],
+    quizWords: [],
   },
   {
     day: 11,
@@ -550,7 +550,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Uncle', 'Aunt', 'Cousin', 'Parents', 'Siblings', 'Grandparents'],
+    quizWords: [],
   },
   {
     day: 12,
@@ -587,7 +587,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Home', 'Bedroom', 'Kitchen', 'Living Room', 'Bathroom', 'I want water please'],
+    quizWords: [],
   },
   {
     day: 13,
@@ -624,7 +624,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['I love my family', 'I am happy', 'Be happy', "Don't cry", 'Thank you mama'],
+    quizWords: [],
   },
   {
     day: 14,
@@ -677,6 +677,6 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['Father', 'Mother', 'Brother', 'Sister', 'Grandpa', 'Grandma', 'Uncle', 'Aunt', 'Cousin', 'Home'],
+    quizWords: [],
   },
 ]
