@@ -65,18 +65,38 @@ export default function Dashboard() {
   const [session, setSession] = useState<StudentSession | null>(null)
   const [dayStatuses, setDayStatuses] = useState<DayStatus[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const loadProgress = useCallback((s: StudentSession) => {
+    setLoading(true)
+    setError('')
     getProgressForStudent(s.id)
       .then(progressList => setDayStatuses(computeDayStatuses(progressList)))
-      .catch(console.error)
+      .catch(err => {
+        console.error(err)
+        setError('Could not load progress. Check your connection and try again.')
+        // Still show chapters with default statuses so student isn't stuck
+        setDayStatuses(computeDayStatuses([]))
+      })
       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
     const raw = localStorage.getItem('student_session')
     if (!raw) { navigate('/'); return }
-    const s: StudentSession = JSON.parse(raw)
+    let s: StudentSession
+    try {
+      s = JSON.parse(raw)
+    } catch {
+      localStorage.removeItem('student_session')
+      navigate('/')
+      return
+    }
+    if (!s.id || !s.name) {
+      localStorage.removeItem('student_session')
+      navigate('/')
+      return
+    }
     setSession(s)
     loadProgress(s)
   }, [navigate, location.key, loadProgress])
@@ -118,6 +138,12 @@ export default function Dashboard() {
       )}
 
       <main className="px-4 py-5">
+        {error && (
+          <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-4 py-3 mb-4 text-sm font-semibold flex items-center gap-2">
+            ⚠️ {error}
+            <button onClick={() => session && loadProgress(session)} className="ml-auto underline font-bold">Retry</button>
+          </div>
+        )}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
