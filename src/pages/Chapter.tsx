@@ -136,8 +136,9 @@ export default function Chapter() {
     )
   }
 
+  const hasQuiz = chapter.day !== 1 && chapter.quizWords.length > 0
   const tabs = (['vocab', 'lesson', 'dialogue', 'quiz'] as Phase[])
-    .filter(p => !(p === 'quiz' && chapter.day === 1))
+    .filter(p => !(p === 'quiz' && !hasQuiz))
   const tabLabels: Record<string, string> = {
     vocab: '📚 Words', lesson: '🗣️ Speak', dialogue: '💬 Talk', quiz: '📝 Quiz'
   }
@@ -208,12 +209,12 @@ export default function Chapter() {
         )}
 
         {phase === 'dialogue' && (
-          <DialoguePhase chapter={chapter} index={dialogueIndex} activeLine={activeLine}
+          <DialoguePhase chapter={chapter} index={dialogueIndex} activeLine={activeLine} hasQuiz={hasQuiz}
             onPlay={() => { setActiveLine(0); startDialoguePlayback(chapter.dialogues[dialogueIndex].lines) }}
             onNext={() => {
               setActiveLine(-1)
               if (dialogueIndex < chapter.dialogues.length - 1) { setDialogueIndex(i => i + 1) }
-              else if (chapter.day === 1) { setPhase('complete') }
+              else if (!hasQuiz) { setPhase('complete') }
               else { const q = buildQuiz(chapter); setQuiz(q); setQuizIndex(0); setQuizScore(0); setSelectedAnswer(null); setPhase('quiz') }
             }}
             onPrev={() => { setActiveLine(-1); setDialogueIndex(i => Math.max(0, i - 1)) }} />
@@ -457,8 +458,8 @@ function RepeatPhase({ chapter, index, onSpeak, onNext, onPrev }: {
 
 // ── DialoguePhase ─────────────────────────────────────────────────────────────
 
-function DialoguePhase({ chapter, index, activeLine, onPlay, onNext, onPrev }: {
-  chapter: ChapterData; index: number; activeLine: number
+function DialoguePhase({ chapter, index, activeLine, hasQuiz, onPlay, onNext, onPrev }: {
+  chapter: ChapterData; index: number; activeLine: number; hasQuiz: boolean
   onPlay: () => void; onNext: () => void; onPrev: () => void
 }) {
   const dialogue = chapter.dialogues[index]
@@ -521,7 +522,7 @@ function DialoguePhase({ chapter, index, activeLine, onPlay, onNext, onPrev }: {
           className="flex-1 bg-gray-100 text-gray-600 font-bold rounded-xl py-4 disabled:opacity-30 touch-target">← Back</button>
         <button onClick={onNext}
           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl py-4 touch-target">
-          {isLast ? (chapter.day === 1 ? 'Finish →' : 'Take Quiz →') : 'Next →'}
+          {isLast ? (!hasQuiz ? 'Finish →' : 'Take Quiz →') : 'Next →'}
         </button>
       </div>
     </div>

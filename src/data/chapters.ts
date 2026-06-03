@@ -204,7 +204,7 @@ export const CHAPTERS: ChapterData[] = [
         ],
       },
     ],
-    quizWords: ['My name is Aryan', 'What is your name?', 'My school\'s name is PVE School', 'My teacher\'s name is Miss Rina', 'My father\'s name is Rajan'],
+    quizWords: [],
   },
   {
     day: 5,
