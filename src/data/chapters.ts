@@ -165,7 +165,7 @@ export const CHAPTERS: ChapterData[] = [
       { text: "What is your mother's name?", emoji: '👩' },
       { text: "My mother's name is Priya.", emoji: '👩' },
       { text: "What is your school's name?", emoji: '🏫' },
-      { text: "My school's name is PVE School.", emoji: '🏫' },
+      { text: "My school's name is Peace Valley English School.", emoji: '🏫' },
       { text: "What is your teacher's name?", emoji: '👩‍🏫' },
       { text: "My teacher's name is Miss Rina.", emoji: '👩‍🏫' },
       { text: "What is your brother's name?", emoji: '👦' },
