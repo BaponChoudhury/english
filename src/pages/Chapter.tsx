@@ -158,8 +158,14 @@ export default function Chapter() {
       </header>
 
       {session?.id === 'admin-preview' && (
-        <div className="bg-amber-400 text-amber-900 text-xs font-black px-4 py-1.5 text-center">
-          👩‍🏫 Admin Preview Mode — progress will not be saved
+        <div className="bg-amber-400 text-amber-900 text-xs font-black px-4 py-1.5 flex items-center justify-between">
+          <span>👩‍🏫 Admin Preview Mode — progress will not be saved</span>
+          <button
+            onClick={() => { window.speechSynthesis?.cancel(); navigate('/admin/dashboard') }}
+            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-3 py-1 rounded-lg transition"
+          >
+            ← Admin Panel
+          </button>
         </div>
       )}
       {/* Phase tabs — only already-visited tabs are tappable */}
