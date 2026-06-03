@@ -58,18 +58,10 @@ export default function Login() {
       } catch {}
     }
 
-    // Already signed into Supabase (page refresh after email login)
+    // Already signed into Supabase (page refresh)
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) await handleAuthSession(data.session.user.id)
     })
-
-    // Listen for sign-in events (email/password login, signup)
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        await handleAuthSession(session.user.id)
-      }
-    })
-    return () => listener.subscription.unsubscribe()
   }, [navigate, handleAuthSession])
 
   async function handleGoogleSignIn() {
@@ -87,9 +79,9 @@ export default function Login() {
     setError('')
     if (!email || !password) { setError('Enter email and password.'); return }
     setLoading(true)
-    // onAuthStateChange SIGNED_IN will fire and call handleAuthSession
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false) }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setError(error.message); setLoading(false); return }
+    if (data.session) await handleAuthSession(data.session.user.id)
   }
 
   async function handleEmailSignUp(e: React.FormEvent) {
@@ -98,14 +90,15 @@ export default function Login() {
     if (!email || !password) { setError('Enter email and password.'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
     setLoading(true)
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) {
-      setError(error.message || 'Sign up failed. Try again.')
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) { setError(error.message || 'Sign up failed.'); setLoading(false); return }
+    if (data.session) {
+      await handleAuthSession(data.session.user.id)
+    } else {
+      // session is null when email confirmation is still ON in Supabase
+      setError('Please disable "Confirm email" in Supabase Auth settings, then try again.')
       setLoading(false)
-      return
     }
-    // onAuthStateChange SIGNED_IN fires automatically after signUp (when email confirm is OFF)
-    // No need to call handleAuthSession here — the listener handles it
   }
 
   async function handleLinkCode(e: React.FormEvent) {
