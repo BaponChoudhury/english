@@ -46,8 +46,8 @@ export function getSpeakerRole(text: string): 'teacher' | 'student' {
   // Student addressing teacher/authority by name/title
   if (/\bteacher\b|\bsir\b|\bmiss\b|\bmadam\b/.test(t)) return 'student'
 
-  // Student answers — starts with "my", "i am", "i have", "i love", etc.
-  if (/^(my |i am |i'm |i have |i love |i want |i like |i go |yes|no\b|fine\b|happy\b)/.test(t)) return 'student'
+  // Student answers — starts with "my", "i am", "i have", "i say", etc.
+  if (/^(my |i am |i'm |i have |i love |i want |i like |i go |i say |yes|no\b|fine\b|happy\b|excuse me)/.test(t)) return 'student'
 
   // Teacher addresses the class
   if (/\bchildren\b|\bclass\b|\beveryone\b/.test(t)) return 'teacher'
