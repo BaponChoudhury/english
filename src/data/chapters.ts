@@ -280,43 +280,54 @@ export const CHAPTERS: ChapterData[] = [
       { word: 'No problem', emoji: '👍' },
     ],
     sentences: [
-      { text: 'Sorry!', emoji: '😔' },
-      { text: 'I am sorry.', emoji: '🙇' },
-      { text: 'Sorry teacher.', emoji: '😔' },
-      { text: 'I am sorry teacher.', emoji: '🙇' },
-      { text: 'I am sorry friend.', emoji: '🙇' },
-      { text: 'I am sorry, I am late.', emoji: '⏰' },
-      { text: 'I am sorry, I broke the pencil.', emoji: '✏️' },
-      { text: 'I am sorry, I forgot.', emoji: '🤔' },
-      { text: "I am sorry, I didn't mean it.", emoji: '😔' },
-      { text: 'Excuse me.', emoji: '🙋' },
-      { text: "Don't worry!", emoji: '🤗' },
-      { text: 'Be happy!', emoji: '😊' },
-      { text: "Don't cry.", emoji: '😢' },
+      { text: 'You are late. What do you say?', emoji: '⏰' },
+      { text: 'I am sorry, I am late.', emoji: '🙇' },
+      { text: "It's okay. Don't be late again.", emoji: '👩‍🏫' },
+      { text: 'You broke the pencil. What do you say?', emoji: '✏️' },
+      { text: 'I am sorry, I broke the pencil.', emoji: '🙇' },
+      { text: "No problem. Be careful next time.", emoji: '👍' },
+      { text: 'You forgot your homework. What do you say?', emoji: '🤔' },
+      { text: 'I am sorry, I forgot my homework.', emoji: '🙇' },
+      { text: "It's fine. Bring it tomorrow.", emoji: '👩‍🏫' },
+      { text: 'Excuse me, can I come in?', emoji: '🙋' },
+      { text: 'Yes, come in.', emoji: '👩‍🏫' },
+      { text: 'Your friend is crying. What do you say?', emoji: '😢' },
+      { text: "Don't cry. Don't worry. Be happy!", emoji: '🤗' },
+      { text: 'I am sorry, I didn\'t mean it.', emoji: '😔' },
+      { text: "It's okay. I forgive you.", emoji: '😊' },
     ],
     dialogues: [
       {
         lines: [
-          { speaker: 'Child A', text: 'I am sorry.' },
+          { speaker: 'Child A', text: 'I am sorry I pushed you.' },
           { speaker: 'Child B', text: "It's okay." },
-        ],
-      },
-      {
-        lines: [
-          { speaker: 'Child A', text: 'Sorry teacher.' },
-          { speaker: 'Teacher', text: "It's fine." },
-        ],
-      },
-      {
-        lines: [
-          { speaker: 'Child A', text: 'I am sorry I took your toy.' },
-          { speaker: 'Child B', text: 'No problem.' },
-        ],
-      },
-      {
-        lines: [
-          { speaker: 'Child A', text: 'I am sad…' },
+          { speaker: 'Child A', text: 'I am sorry, I didn\'t mean it.' },
           { speaker: 'Child B', text: "Don't worry. Be happy!" },
+        ],
+      },
+      {
+        lines: [
+          { speaker: 'Child A', text: 'Sorry teacher, I am late.' },
+          { speaker: 'Teacher', text: "It's fine. Don't be late again." },
+          { speaker: 'Child A', text: 'I am sorry, I forgot my bag.' },
+          { speaker: 'Teacher', text: "No problem. Sit down." },
+        ],
+      },
+      {
+        lines: [
+          { speaker: 'Child A', text: 'Excuse me.' },
+          { speaker: 'Teacher', text: 'Yes?' },
+          { speaker: 'Child A', text: 'I am sorry, I broke the pencil.' },
+          { speaker: 'Teacher', text: "It's okay. Be careful next time." },
+          { speaker: 'Child A', text: 'Thank you, teacher.' },
+        ],
+      },
+      {
+        lines: [
+          { speaker: 'Child A', text: 'Why are you crying?' },
+          { speaker: 'Child B', text: 'I am sad.' },
+          { speaker: 'Child A', text: "Don't cry. Don't worry. Be happy!" },
+          { speaker: 'Child B', text: 'Thank you friend.' },
         ],
       },
     ],
