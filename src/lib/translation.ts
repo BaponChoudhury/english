@@ -38,14 +38,20 @@ export async function translateToEnglish(
 
 // Detect if a sentence is spoken by teacher or student based on content
 export function getSpeakerRole(text: string): 'teacher' | 'student' {
-  const t = text.toLowerCase()
-  // Student speaks when addressing teacher/family
+  const t = text.toLowerCase().trim()
+
+  // Questions starting with wh-/aux verbs → always teacher asking
+  if (/^(what |who |where |when |how |do you |are you |is your |can you |did you |have you )/.test(t) && t.endsWith('?')) return 'teacher'
+
+  // Student addressing teacher/authority by name/title
   if (/\bteacher\b|\bsir\b|\bmiss\b|\bmadam\b/.test(t)) return 'student'
-  if (/\bpapa\b|\bmama\b|\bfather\b|\bmother\b|\buncle\b|\baunt\b|\bgrandpa\b|\bgrandma\b/.test(t)) return 'student'
-  // Student gives responses
-  if (/^(yes!?|no!?|i am|my name is|i have|i love|i want|fine|happy|good morning teacher|hello teacher|hi teacher|goodbye teacher|good night|good evening|good afternoon)/.test(t)) return 'student'
+
+  // Student answers — starts with "my", "i am", "i have", "i love", etc.
+  if (/^(my |i am |i'm |i have |i love |i want |i like |i go |yes|no\b|fine\b|happy\b)/.test(t)) return 'student'
+
   // Teacher addresses the class
-  if (/children|class\b|everyone|to all/.test(t)) return 'teacher'
+  if (/\bchildren\b|\bclass\b|\beveryone\b/.test(t)) return 'teacher'
+
   return 'teacher'
 }
 
