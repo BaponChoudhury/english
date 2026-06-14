@@ -38,12 +38,7 @@ function computeDayStatuses(progressList: Progress[]): DayStatus[] {
       const prevKey = `day-${CHAPTERS[idx - 1].day}`
       const prevRevisions = progressMap.get(prevKey) ?? 0
       if (prevRevisions >= REQUIRED_REVISIONS) {
-        const lastRevised = lastRevisedMap.get(prevKey)
-        if (lastRevised) {
-          const lastDate = new Date(lastRevised).toDateString()
-          const today = new Date().toDateString()
-          isUnlocked = lastDate !== today
-        }
+        isUnlocked = true
       }
     }
 
